@@ -14,7 +14,6 @@ using Adnc.Maint.Core.Entities;
 using Adnc.Core.Shared.IRepositories;
 using Adnc.Application.Shared.Services;
 using Adnc.Application.Shared;
-using System.Text.Json;
 
 namespace  Adnc.Maint.Application.Services
 {
@@ -38,7 +37,8 @@ namespace  Adnc.Maint.Application.Services
 
         public async Task Delete(long Id)
         {
-            await _dictRepository.UpdateRangeAsync(d => (d.ID == Id) || (d.Pid == Id), d => new SysDict { IsDeleted = true });
+            //await _dictRepository.UpdateRangeAsync(d => (d.ID == Id) || (d.Pid == Id), d => new SysDict { IsDeleted = true });
+            await _dictRepository.DeleteRangeAsync(d => (d.ID == Id) || (d.Pid == Id));
         }
 
         public async Task<List<DictDto>> GetList(DictSearchDto searchDto)
@@ -46,12 +46,12 @@ namespace  Adnc.Maint.Application.Services
             var result = new List<DictDto>();
 
             Expression<Func<DictDto, bool>> whereCondition = x => true;
-            if (!string.IsNullOrWhiteSpace(searchDto.Name))
+            if (searchDto.Name.IsNotNullOrWhiteSpace())
             {
                 whereCondition = whereCondition.And(x => x.Name.Contains(searchDto.Name));
             }
 
-            var dicts = (await this.GetAll()).OrderBy(d => d.Num).ToList();
+            var dicts = (await this.GetAllFromCache()).Where(whereCondition.Compile()).OrderBy(d => d.Num).ToList();
             if (dicts.Any())
             {
                 result = dicts.Where(d => d.Pid == 0).OrderBy(d => d.Num).ToList();
@@ -67,7 +67,7 @@ namespace  Adnc.Maint.Application.Services
 
         public async Task Save(DictSaveInputDto saveDto)
         {
-            if (string.IsNullOrWhiteSpace(saveDto.DictName))
+            if (saveDto.DictName.IsNullOrWhiteSpace())
             {
                 throw new BusinessException(new ErrorModel(ErrorCode.BadRequest,"请输入字典名称"));
             }
@@ -91,24 +91,24 @@ namespace  Adnc.Maint.Application.Services
 
         public async Task<DictDto> Get(long id)
         {
-            var dictDto = (await this.GetAll()).Where(x => x.ID == id).FirstOrDefault();
+            var dictDto = (await this.GetAllFromCache()).Where(x => x.ID == id).FirstOrDefault();
 
             if (dictDto == null)
             {
                 var errorModel = new ErrorModel(ErrorCode.NotFound, "没有找到");
                 throw new BusinessException(errorModel);
             }
-            dictDto.Children = (await this.GetAll()).Where(x => x.Pid == dictDto.ID).ToList();
+            dictDto.Children = (await this.GetAllFromCache()).Where(x => x.Pid == dictDto.ID).ToList();
 
             return dictDto;
         }
 
-        public async Task<DictDto> GetInculdeSubs(long id)
-        {
-            return (await this.GetAll()).Where(x => x.ID == id || x.Pid == id).OrderBy(x => x.ID).ThenBy(x => x.Num).FirstOrDefault();
-        }
+        //public async Task<DictDto> GetInculdeSubs(long id)
+        //{
+        //    return (await this.GetAllFromCache()).Where(x => x.ID == id || x.Pid == id).OrderBy(x => x.ID).ThenBy(x => x.Num).FirstOrDefault();
+        //}
 
-        private async Task<List<DictDto>> GetAll()
+        private async Task<List<DictDto>> GetAllFromCache()
         {
             var cahceValue = await _cache.GetAsync(EasyCachingConsts.DictListCacheKey, async () =>
             {
