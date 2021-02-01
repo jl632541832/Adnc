@@ -6,7 +6,8 @@ using Adnc.WebApi.Shared;
 using Adnc.Cus.Core.EventBus;
 using Adnc.Cus.Core;
 using Adnc.Application.Shared.RpcServices;
-using Adnc.Cus.Application.RpcServices;
+using System;
+using System.Threading.Tasks;
 
 namespace Adnc.Cus.WebApi.Helper
 {
@@ -22,14 +23,15 @@ namespace Adnc.Cus.WebApi.Helper
 
         public void AddAllRpcServices()
         {
-            var policies = base.GenerateDefaultRefitPolicies();
+            var defaultPolicies = base.GenerateDefaultRefitPolicies();
+            Func<Task<string>> defaultGetToken = GetTokenDefaultFunc;
 
             //注册用户认证、鉴权服务Rpc服务到容器
             var authServerAddress = (_env.IsProduction() || _env.IsStaging()) ? "adnc.usr.webapi" : "http://localhost:5010";
-            base.AddRpcService<IAuthRpcService>(authServerAddress, policies);
+            base.AddRpcService<IAuthRpcService>(authServerAddress, defaultPolicies,defaultGetToken);
             //注册运维RPC服务到容器
             var maintServiceAddress = (_env.IsProduction() || _env.IsStaging()) ? "adnc.maint.webapi" : "http://localhost:5020";
-            base.AddRpcService<IMaintRpcService>(maintServiceAddress, policies);
+            base.AddRpcService<IMaintRpcService>(maintServiceAddress, defaultPolicies,defaultGetToken);
         }
 
         public void AddAllEventBusSubscribers(string tableNamePrefix = "Cap", string groupName = EbConsts.CapDefaultGroup)
