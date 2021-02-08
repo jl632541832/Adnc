@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
-namespace Adnc.Cus.Migrations.Migrations
+namespace Adnc.Warehouse.Migrations.Migrations
 {
     [DbContext(typeof(AdncDbContext))]
     partial class AdncDbContextModelSnapshot : ModelSnapshot
@@ -17,138 +17,110 @@ namespace Adnc.Cus.Migrations.Migrations
                 .HasAnnotation("ProductVersion", "3.1.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
-            modelBuilder.Entity("Adnc.Cus.Core.Entities.CusFinance", b =>
+            modelBuilder.Entity("Adnc.Warehouse.Core.Entities.Product", b =>
                 {
-                    b.Property<long>("ID")
-                        .HasColumnName("ID")
+                    b.Property<long>("Id")
                         .HasColumnType("bigint");
 
-                    b.Property<string>("Account")
+                    b.Property<string>("Describe")
+                        .HasColumnType("varchar(128) CHARACTER SET utf8mb4")
+                        .HasMaxLength(128);
+
+                    b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("varchar(16) CHARACTER SET utf8mb4")
-                        .HasMaxLength(16);
-
-                    b.Property<decimal>("Balance")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<long?>("CreateBy")
-                        .HasColumnName("CreateBy")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("CreateTime")
-                        .HasColumnName("CreateTime")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<long?>("ModifyBy")
-                        .HasColumnName("ModifyBy")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("ModifyTime")
-                        .HasColumnName("ModifyTime")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("ID");
-
-                    b.ToTable("CusFinance");
-                });
-
-            modelBuilder.Entity("Adnc.Cus.Core.Entities.CusTransactionLog", b =>
-                {
-                    b.Property<long>("ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnName("ID")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Account")
-                        .HasColumnType("varchar(16) CHARACTER SET utf8mb4")
-                        .HasMaxLength(16);
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("ChangedAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("ChangingAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<long?>("CreateBy")
-                        .HasColumnName("CreateBy")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("CreateTime")
-                        .HasColumnName("CreateTime")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<long>("CustomerId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("ExchageStatus")
-                        .HasColumnType("varchar(3) CHARACTER SET utf8mb4")
-                        .HasMaxLength(3);
-
-                    b.Property<string>("ExchangeType")
-                        .HasColumnType("varchar(3) CHARACTER SET utf8mb4")
-                        .HasMaxLength(3);
-
-                    b.Property<string>("Remark")
                         .HasColumnType("varchar(64) CHARACTER SET utf8mb4")
                         .HasMaxLength(64);
 
-                    b.HasKey("ID");
+                    b.Property<float>("Price")
+                        .HasColumnType("float");
 
-                    b.ToTable("CusTransactionLog");
+                    b.Property<long?>("ShlefId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasColumnType("varchar(32) CHARACTER SET utf8mb4")
+                        .HasMaxLength(32);
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasColumnType("varchar(4) CHARACTER SET utf8mb4")
+                        .HasMaxLength(4);
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Product");
                 });
 
-            modelBuilder.Entity("Adnc.Cus.Core.Entities.Customer", b =>
+            modelBuilder.Entity("Adnc.Warehouse.Core.Entities.Shelf", b =>
                 {
-                    b.Property<long>("ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnName("ID")
+                    b.Property<long>("Id")
                         .HasColumnType("bigint");
 
-                    b.Property<string>("Account")
-                        .IsRequired()
-                        .HasColumnType("varchar(16) CHARACTER SET utf8mb4")
-                        .HasMaxLength(16);
+                    b.Property<int>("FreezedQty")
+                        .HasColumnType("int");
 
-                    b.Property<long?>("CreateBy")
-                        .HasColumnName("CreateBy")
+                    b.Property<long?>("ProductId")
                         .HasColumnType("bigint");
 
-                    b.Property<DateTime?>("CreateTime")
-                        .HasColumnName("CreateTime")
-                        .HasColumnType("datetime(6)");
+                    b.Property<int>("Qty")
+                        .HasColumnType("int");
 
-                    b.Property<long?>("ModifyBy")
-                        .HasColumnName("ModifyBy")
-                        .HasColumnType("bigint");
+                    b.HasKey("Id");
 
-                    b.Property<DateTime?>("ModifyTime")
-                        .HasColumnName("ModifyTime")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Nickname")
-                        .IsRequired()
-                        .HasColumnType("varchar(16) CHARACTER SET utf8mb4")
-                        .HasMaxLength(16);
-
-                    b.Property<string>("Realname")
-                        .IsRequired()
-                        .HasColumnType("varchar(16) CHARACTER SET utf8mb4")
-                        .HasMaxLength(16);
-
-                    b.HasKey("ID");
-
-                    b.ToTable("Customer");
+                    b.ToTable("Shelf");
                 });
 
-            modelBuilder.Entity("Adnc.Cus.Core.Entities.CusFinance", b =>
+            modelBuilder.Entity("Adnc.Warehouse.Core.Entities.Product", b =>
                 {
-                    b.HasOne("Adnc.Cus.Core.Entities.Customer", "Customer")
-                        .WithOne("CusFinance")
-                        .HasForeignKey("Adnc.Cus.Core.Entities.CusFinance", "ID")
-                        .IsRequired();
+                    b.OwnsOne("Adnc.Warehouse.Core.Entities.ProductStatus", "Status", b1 =>
+                        {
+                            b1.Property<long>("ProductId")
+                                .HasColumnType("bigint");
+
+                            b1.Property<string>("ChangeStatusReason")
+                                .HasColumnName("ChangeStatusReason")
+                                .HasColumnType("varchar(32) CHARACTER SET utf8mb4")
+                                .HasMaxLength(32);
+
+                            b1.Property<int>("StatusCode")
+                                .HasColumnName("StatusCode")
+                                .HasColumnType("int");
+
+                            b1.HasKey("ProductId");
+
+                            b1.ToTable("Product");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ProductId");
+                        });
+                });
+
+            modelBuilder.Entity("Adnc.Warehouse.Core.Entities.Shelf", b =>
+                {
+                    b.OwnsOne("Adnc.Warehouse.Core.Entities.ShelfPosition", "Position", b1 =>
+                        {
+                            b1.Property<long>("ShelfId")
+                                .HasColumnType("bigint");
+
+                            b1.Property<string>("Code")
+                                .IsRequired()
+                                .HasColumnName("PositionCode")
+                                .HasColumnType("varchar(32) CHARACTER SET utf8mb4")
+                                .HasMaxLength(32);
+
+                            b1.Property<string>("Description")
+                                .HasColumnName("PositionDescription")
+                                .HasColumnType("varchar(64) CHARACTER SET utf8mb4")
+                                .HasMaxLength(64);
+
+                            b1.HasKey("ShelfId");
+
+                            b1.ToTable("Shelf");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ShelfId");
+                        });
                 });
 #pragma warning restore 612, 618
         }

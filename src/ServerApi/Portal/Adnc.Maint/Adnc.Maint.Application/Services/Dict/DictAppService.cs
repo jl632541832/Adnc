@@ -4,13 +4,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using AutoMapper;
 using EasyCaching.Core;
 using Adnc.Maint.Application.Dtos;
 using Adnc.Infr.Common.Extensions;
 using Adnc.Infr.Common.Helper;
-using Adnc.Maint.Core.CoreServices;
+using Adnc.Maint.Core.Services;
 using Adnc.Maint.Core.Entities;
 using Adnc.Core.Shared.IRepositories;
 using Adnc.Application.Shared.Services;
@@ -21,12 +20,12 @@ namespace  Adnc.Maint.Application.Services
     {
         private readonly IMapper _mapper;
         private readonly IEfRepository<SysDict> _dictRepository;
-        private readonly IMaintManagerService _maintManagerService;
+        private readonly MaintManagerService _maintManagerService;
         private readonly IHybridCachingProvider _cache;
 
         public DictAppService(IMapper mapper
             , IEfRepository<SysDict> dictRepository
-            , IMaintManagerService maintManagerService
+            , MaintManagerService maintManagerService
             , IHybridProviderFactory hybridProviderFactory)
         {
             _mapper = mapper;
@@ -37,7 +36,7 @@ namespace  Adnc.Maint.Application.Services
 
         public async Task<AppSrvResult> Delete(long Id)
         {
-            await _dictRepository.DeleteRangeAsync(d => (d.ID == Id) || (d.Pid == Id));
+            await _dictRepository.DeleteRangeAsync(d => (d.Id == Id) || (d.Pid == Id));
             return DefaultResult();
         }
 
@@ -57,7 +56,7 @@ namespace  Adnc.Maint.Application.Services
                 result = dicts.Where(d => d.Pid == 0).OrderBy(d => d.Num).ToList();
                 foreach (var item in result)
                 {
-                    var subDict = dicts.Where(d => d.Pid == item.ID).OrderBy(d => d.Num).Select(d => $"{d.Num}:{d.Name}");
+                    var subDict = dicts.Where(d => d.Pid == item.Id).OrderBy(d => d.Num).Select(d => $"{d.Num}:{d.Name}");
                     item.Detail = string.Join(";", subDict);
                 }
 
@@ -73,19 +72,19 @@ namespace  Adnc.Maint.Application.Services
 
             long Id = IdGenerater.GetNextId();
             var subDicts = GetSubDicts(Id, saveDto.DictValues);
-            await _dictRepository.InsertRangeAsync(subDicts.Append(new SysDict { ID = Id, Pid = 0, Name = saveDto.DictName, Tips = saveDto.Tips, Num = "0" }));
+            await _dictRepository.InsertRangeAsync(subDicts.Append(new SysDict { Id = Id, Pid = 0, Name = saveDto.DictName, Tips = saveDto.Tips, Num = "0" }));
 
             return Id;
         }
 
         public async Task<AppSrvResult> Update(DictSaveInputDto saveDto)
         {
-            var exists = (await GetAllFromCache()).Exists(x => x.Name.EqualsIgnoreCase(saveDto.DictName) && x.ID != saveDto.ID);
+            var exists = (await GetAllFromCache()).Exists(x => x.Name.EqualsIgnoreCase(saveDto.DictName) && x.Id != saveDto.Id);
             if (exists)
                 return Problem(HttpStatusCode.BadRequest, "字典名字已经存在");
 
-            var dict = new SysDict { Name = saveDto.DictName, Tips = saveDto.Tips, ID = saveDto.ID, Pid = 0 };
-            var subDicts = GetSubDicts(saveDto.ID, saveDto.DictValues);
+            var dict = new SysDict { Name = saveDto.DictName, Tips = saveDto.Tips, Id = saveDto.Id, Pid = 0 };
+            var subDicts = GetSubDicts(saveDto.Id, saveDto.DictValues);
             await _maintManagerService.UpdateDicts(dict, subDicts);
 
             return DefaultResult();
@@ -93,12 +92,12 @@ namespace  Adnc.Maint.Application.Services
 
         public async Task<AppSrvResult<DictDto>> Get(long id)
         {
-            var dictDto = (await this.GetAllFromCache()).Where(x => x.ID == id).FirstOrDefault();
+            var dictDto = (await this.GetAllFromCache()).Where(x => x.Id == id).FirstOrDefault();
 
             if (dictDto == null)
                 return Problem(HttpStatusCode.NotFound, "没有找到");
 
-            dictDto.Children = (await this.GetAllFromCache()).Where(x => x.Pid == dictDto.ID).ToList();
+            dictDto.Children = (await this.GetAllFromCache()).Where(x => x.Pid == dictDto.Id).ToList();
 
             return dictDto;
         }
@@ -124,7 +123,7 @@ namespace  Adnc.Maint.Application.Services
                 subDicts = values.Select((s,Index) => new SysDict
                 {
                     //ID = snowflake.NextId()
-                    ID = IdGenerater.GetNextId()
+                    Id = IdGenerater.GetNextId()
                     ,
                     Pid = pid
                     ,

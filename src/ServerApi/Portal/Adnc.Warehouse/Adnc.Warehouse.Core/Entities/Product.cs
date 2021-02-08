@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using Adnc.Core.Shared.Domain.Entities;
 
 namespace Adnc.Warehouse.Core.Entities
 {
-    public class Product : AggregateRoot<long>
+    public class Product : AggregateRoot
     {
         public string Sku { private set; get; }
 
@@ -17,7 +19,7 @@ namespace Adnc.Warehouse.Core.Entities
 
         public ProductStatus Status { internal set; get; }
 
-        public long? AssignedWarehouseId { private set; get; }
+        public long? ShlefId { private set; get; }
 
         public string Unit {set; get; }
 
@@ -36,7 +38,7 @@ namespace Adnc.Warehouse.Core.Entities
         /// <param name="describe"></param>
         internal Product(long id, string sku,float price, string name,string unit, string describe = null)
         {
-            this.ID = id;
+            this.Id = id;
             this.Sku = sku.Trim();
             this.Name = name.Trim();
             this.Unit = unit.Trim();
@@ -83,11 +85,26 @@ namespace Adnc.Warehouse.Core.Entities
         }
 
         /// <summary>
-        /// 下架商品
+        /// 下架商品，不允许销售
         /// </summary>
         public void PutOffSale(string reason)
         {
             this.Status = new ProductStatus(ProductStatusEnum.SaleOff, reason);
+        }
+
+        /// <summary>
+        /// 设置仓库的货架Id
+        /// </summary>
+        /// <param name="shelfId"></param>
+        public void SetShelf(long shelfId)
+        {
+            if (this.ShlefId == 0)
+                throw new ArgumentException("newPrice");
+
+            if (this.ShlefId == shelfId)
+                return;
+
+            this.ShlefId = shelfId;
         }
     }
 }

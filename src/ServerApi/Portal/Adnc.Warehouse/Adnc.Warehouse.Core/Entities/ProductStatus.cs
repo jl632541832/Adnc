@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Adnc.Core.Shared.Domain.Entities;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -6,16 +7,16 @@ namespace Adnc.Warehouse.Core.Entities
 {
     public class ProductStatus : ValueObject
     {
-        public ProductStatusEnum Status { get; private set; }
+        public ProductStatusEnum StatusCode { get; private set; }
         public string ChangeStatusReason { get; private set; }
 
         private ProductStatus()
         {
         }
 
-        public ProductStatus(ProductStatusEnum status,string reason)
+        public ProductStatus(ProductStatusEnum statusCode,string reason)
         {
-            this.Status = status;
+            this.StatusCode = statusCode;
             this.ChangeStatusReason = reason;
         }
     }
