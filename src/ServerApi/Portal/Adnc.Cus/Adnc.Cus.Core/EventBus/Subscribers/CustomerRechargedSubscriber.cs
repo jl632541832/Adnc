@@ -4,7 +4,7 @@ using DotNetCore.CAP;
 using Adnc.Core.Shared.IRepositories;
 using Adnc.Cus.Core.Entities;
 using Adnc.Core.Shared;
-using Adnc.Core.Shared.EventBus;
+using Adnc.Core.Shared.Events;
 using Adnc.Cus.Core.EventBus.Etos;
 
 namespace Adnc.Cus.Core.EventBus.Subscribers
@@ -14,7 +14,7 @@ namespace Adnc.Cus.Core.EventBus.Subscribers
         Task Process(CustomerRechargedEto eto);
     }
 
-    public class CustomerRechargedSubscriber : ICustomerRechargedSubscriber, ICapSubscribe
+    public class CustomerRechargedSubscriber : Adnc.Core.Shared.Events.EventHandler, ICustomerRechargedSubscriber, ICapSubscribe
     {
         private readonly IUnitOfWork _uow;
         private readonly IEfRepository<CusFinance> _cusFinanceReop;
@@ -48,8 +48,8 @@ namespace Adnc.Cus.Core.EventBus.Subscribers
                 transLog.ChangedAmount = newBalance;
 
 
-                await _cusFinanceReop.UpdateAsync(new CusFinance() { Id = finance.Id, Balance = newBalance }, t => t.Balance);
-                await _cusTranlog.UpdateAsync(transLog, t => t.ExchageStatus, t => t.ChangingAmount, t => t.ChangedAmount);
+                await _cusFinanceReop.UpdateAsync(new CusFinance() { Id = finance.Id, Balance = newBalance }, UpdatingProps<CusFinance>(t => t.Balance));
+                await _cusTranlog.UpdateAsync(transLog, UpdatingProps<CusTransactionLog>(t => t.ExchageStatus, t => t.ChangingAmount, t => t.ChangedAmount));
 
                 _uow.Commit();
             }
