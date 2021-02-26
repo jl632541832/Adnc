@@ -15,12 +15,17 @@
             </summary>
             <param name="shelfReop"><see cref="T:Adnc.Warehouse.Domain.Entities.Shelf"/></param>
         </member>
-        <member name="M:Adnc.Warehouse.Application.EventSubscribers.OrderCreatedEventSubscirber.Process(Adnc.Warehouse.Application.OrderCreatedEventEto)">
+        <member name="M:Adnc.Warehouse.Application.EventSubscribers.OrderCreatedEventSubscirber.Process(Adnc.Infr.EventBus.BaseEvent{Adnc.Warehouse.Application.EventSubscribers.OrderCreatedEventSubscirber.EventData})">
             <summary>
             冻结库存
             </summary>
             <param name="eto"></param>
             <returns></returns>
+        </member>
+        <member name="T:Adnc.Warehouse.Application.EventSubscribers.OrderCreatedEventSubscirber.EventData">
+            <summary>
+            订单创建事件数据
+            </summary>
         </member>
         <member name="T:Adnc.Warehouse.Application.EventSubscribers.ShelfToProductAllocatedEventSubscirber">
             <summary>
@@ -33,7 +38,7 @@
             </summary>
             <param name="productReop"><see cref="T:Adnc.Warehouse.Domain.Entities.Product"/></param>
         </member>
-        <member name="M:Adnc.Warehouse.Application.EventSubscribers.ShelfToProductAllocatedEventSubscirber.Process(Adnc.Warehouse.Application.EventSubscribers.ShelfToProductAllocatedEventEto)">
+        <member name="M:Adnc.Warehouse.Application.EventSubscribers.ShelfToProductAllocatedEventSubscirber.Process(Adnc.Warehouse.Domain.Events.ShelfToProductAllocatedEvent)">
             <summary>
             事件处理逻辑
             </summary>
@@ -93,9 +98,16 @@
             <param name="input"></param>
             <returns></returns>
         </member>
-        <member name="M:Adnc.Warehouse.Application.Services.ProductAppService.GetPagedAsync(Adnc.Warehouse.Application.Dtos.ProductSearchDto)">
+        <member name="M:Adnc.Warehouse.Application.Services.ProductAppService.GetPagedAsync(Adnc.Warehouse.Application.Dtos.ProductSearchPagedDto)">
             <summary>
             商品分页列表
+            </summary>
+            <param name="search"></param>
+            <returns></returns>
+        </member>
+        <member name="M:Adnc.Warehouse.Application.Services.ProductAppService.GetListAsync(Adnc.Warehouse.Application.Dtos.ProductSearchListDto)">
+            <summary>
+            商品列表
             </summary>
             <param name="search"></param>
             <returns></returns>
