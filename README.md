@@ -29,6 +29,11 @@
 - <a href="https://github.com/alphayu/adnc" target="_blank">https://github.com/alphayu/adnc</a>
 - 开源不易，如果您喜欢这个项目, 请给个星星⭐️。
 
+## Roadmap
+  - 开发微服务项目生成工具
+  - 集成<a href="https://github.com/dapr/dapr" target="_blank">Dapr</a>
+  - 集成<a href="https://github.com/quartznet/quartznet" target="_blank">Quartz.Net</a>实现框架计划调度功能。
+
 ## 文档
 #### 如何快速跑起来
 - 详细介绍如何使用docker安装reids、mysql、rabbitmq、mongodb，以及如何在本地配置ClientApp、ServerApi。<br/>
@@ -43,7 +48,7 @@
 [请点击链接，查看详细介绍](https://github.com/AlphaYu/Adnc/wiki/%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB)
 
 #### 如何使用EFCore仓储
-- 详细介绍`EFCore`仓储基础功能与工作单元的使用，提供了丰富的演示代码以及演示代码对应的Sql语句。<br/>
+- 详细介绍EFCore仓储基础功能、工作单元、CodeFirst，提供了丰富的演示代码以及演示代码对应的Sql语句。<br/>
 [请点击链接，查看详细介绍](https://github.com/AlphaYu/Adnc/wiki/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8%E4%BB%93%E5%82%A8(%E4%B8%80)-%E5%9F%BA%E7%A1%80%E5%8A%9F%E8%83%BD)
 
 ## 目录结构
@@ -211,11 +216,6 @@
         }
     }
 ```
-## 下一步计划
-  - 完善框架文档。
-  - 优化现有功能
-  - 开发微服务项目生成工具
-  - 集成<a href="https://github.com/quartznet/quartznet" target="_blank">Quartz.Net</a>实现框架计划调度功能。
 
 ## 问题交流
 -  企&ensp;鹅&ensp;群：780634162
