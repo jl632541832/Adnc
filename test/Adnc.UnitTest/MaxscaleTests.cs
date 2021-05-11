@@ -4,23 +4,21 @@ using System.Linq;
 using Xunit;
 using Autofac;
 using Xunit.Abstractions;
-using Adnc.UnitTest.Base;
 using Adnc.UnitTest.Fixtures;
 using Adnc.Core.Shared;
 using Adnc.Cus.Core.Entities;
 using Adnc.Core.Shared.IRepositories;
-using Adnc.Infr.Common;
-using Adnc.Infr.Common.Helper;
+using Adnc.Infra.Common.Helper;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 
-namespace Adnc.UnitTests
+namespace Adnc.UnitTests.EFCore
 {
     public class MaxscaleTests: IClassFixture<MaxscaleDbcontextFixture>
     {
         private readonly ITestOutputHelper _output;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly UserContext _userContext;
+        private readonly IOperater _userContext;
         private readonly IEfRepository<Customer> _cusRsp;
         private readonly IEfRepository<CustomerFinance> _cusFinanceRsp;
         private readonly IEfRepository<CustomerTransactionLog> _cusLogsRsp;
@@ -31,7 +29,7 @@ namespace Adnc.UnitTests
             _fixture = fixture;
             _output = output;
             _unitOfWork = _fixture.Container.Resolve<IUnitOfWork>();
-            _userContext = _fixture.Container.Resolve<UserContext>();
+            _userContext = _fixture.Container.Resolve<IOperater>();
             _cusRsp = _fixture.Container.Resolve<IEfRepository<Customer>>();
             _cusFinanceRsp = _fixture.Container.Resolve<IEfRepository<CustomerFinance>>();
             _cusLogsRsp = _fixture.Container.Resolve<IEfRepository<CustomerTransactionLog>>();
@@ -191,7 +189,7 @@ namespace Adnc.UnitTests
             var list = new List<Customer>();
             for (int i = 0; i < rows; i++)
             {
-                var id = IdGenerater.GetNextId(IdGenerater.DatacenterId, IdGenerater.WorkerId);
+                var id = IdGenerater.GetNextId();
                 var customer = new Customer() { Id = id, Account = "alpha2008", Nickname = IdGenerater.GetNextId().ToString(), Realname = IdGenerater.GetNextId().ToString() };
                 customer.FinanceInfo = new CustomerFinance { Account = "alpha2008", Id = id, Balance = 0 };
                 list.Add(customer);
@@ -207,7 +205,7 @@ namespace Adnc.UnitTests
         /// <returns></returns>
         private async Task<Customer> InsertCustomer()
         {
-            var id = IdGenerater.GetNextId(IdGenerater.DatacenterId, IdGenerater.WorkerId);
+            var id = IdGenerater.GetNextId();
             var customer = new Customer() { Id = id, Account = "alpha2008", Nickname = IdGenerater.GetNextId().ToString(), Realname = IdGenerater.GetNextId().ToString() };
             await _cusRsp.InsertAsync(customer);
             return customer;

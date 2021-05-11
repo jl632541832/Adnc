@@ -4,21 +4,19 @@ using System.Linq;
 using Xunit;
 using Autofac;
 using Xunit.Abstractions;
-using Adnc.UnitTest.Base;
 using Adnc.UnitTest.Fixtures;
 using Adnc.Core.Shared;
 using Adnc.Cus.Core.Entities;
 using Adnc.Core.Shared.IRepositories;
-using Adnc.Infr.Common;
-using Adnc.Infr.Common.Helper;
+using Adnc.Infra.Common.Helper;
 using Adnc.Cus.Core.Services;
 
-namespace Adnc.UnitTest
+namespace Adnc.UnitTest.CoreService
 {
     public class CoreServiceTests : IClassFixture<CoreServiceFixture>
     {
         private readonly ITestOutputHelper _output;
-        private readonly UserContext _userContext;
+        private readonly IOperater _userContext;
         private readonly CustomerManagerService _cusManger;
         private readonly IEfRepository<Customer> _cusRsp;
         private CoreServiceFixture _fixture;
@@ -30,7 +28,7 @@ namespace Adnc.UnitTest
             _output = output;
             _cusRsp = _fixture.Container.Resolve<IEfRepository<Customer>>();
             _cusManger = _fixture.Container.Resolve<CustomerManagerService>();
-            _userContext = _fixture.Container.Resolve<UserContext>();
+            _userContext = _fixture.Container.Resolve<IOperater>();
             Initialize();
         }
 
@@ -48,7 +46,7 @@ namespace Adnc.UnitTest
         [Fact]
         public async Task TestUowInterceptor()
         {
-            var id = IdGenerater.GetNextId(IdGenerater.DatacenterId, IdGenerater.WorkerId);
+            var id = IdGenerater.GetNextId();
             var customer = new Customer() { Id = id, Account = "alpha2008", Nickname = IdGenerater.GetNextId().ToString(), Realname = IdGenerater.GetNextId().ToString() };
             customer.FinanceInfo = new CustomerFinance { Account = "alpha2008", Id = id, Balance = 0 };
             /*
