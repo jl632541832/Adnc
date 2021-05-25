@@ -1,17 +1,19 @@
-﻿using System;
-using System.Net;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Linq.Expressions;
-using System.Collections.Generic;
-using Adnc.Core.Shared.IRepositories;
-using Adnc.Infra.Common.Helper;
-using Adnc.Infra.Common.Extensions;
-using Adnc.Usr.Core.Entities;
-using Adnc.Application.Shared.Dtos;
+﻿using Adnc.Application.Shared.Dtos;
 using Adnc.Application.Shared.Services;
+using Adnc.Core.Shared.IRepositories;
+using Adnc.Infra.Common.Extensions;
+using Adnc.Infra.Common.Helper;
+using Adnc.Usr.Application.Caching;
+using Adnc.Usr.Application.Contracts.Consts;
 using Adnc.Usr.Application.Contracts.Dtos;
 using Adnc.Usr.Application.Contracts.Services;
+using Adnc.Usr.Core.Entities;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Net;
+using System.Threading.Tasks;
 
 namespace Adnc.Usr.Application.Services
 {
@@ -34,14 +36,20 @@ namespace Adnc.Usr.Application.Services
 
             var user = Mapper.Map<SysUser>(input);
             user.Id = IdGenerater.GetNextId();
+            user.Account = user.Account.ToLower();
             user.Salt = SecurityHelper.GenerateRandomCode(5);
             user.Password = HashHelper.GetHashedString(HashType.MD5, user.Password, user.Salt);
+
+            var cacheKey = _cacheService.ConcatCacheKey(CachingConsts.UserValidateInfoKeyPrefix, user.Id);
+            await _cacheService.BloomFilters.CacheKeys.AddAsync(cacheKey);
+            await _cacheService.BloomFilters.Accounts.AddAsync(user.Account);
+
             await _userRepository.InsertAsync(user);
 
             return user.Id;
         }
 
-        public async Task<AppSrvResult> UpdateAsync(long id,UserUpdationDto input)
+        public async Task<AppSrvResult> UpdateAsync(long id, UserUpdationDto input)
         {
             var user = Mapper.Map<SysUser>(input);
 
@@ -151,6 +159,5 @@ namespace Adnc.Usr.Application.Services
 
             return pageModelDto;
         }
-
     }
 }

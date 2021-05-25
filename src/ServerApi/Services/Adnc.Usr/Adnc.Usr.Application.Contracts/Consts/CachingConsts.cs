@@ -7,7 +7,9 @@ namespace Adnc.Usr.Application.Contracts.Consts
     /// </summary>
     public class CachingConsts : SharedCachingConsts
     {
+        //cache key
         public const string MenuListCacheKey = "adnc:usr:menus:list";
+
         public const string MenuTreeListCacheKey = "adnc:usr:menus:tree";
         public const string MenuRelationCacheKey = "adnc:usr:menus:relation";
         public const string MenuCodesCacheKey = "adnc:usr:menus:codes";
@@ -16,11 +18,9 @@ namespace Adnc.Usr.Application.Contracts.Consts
         public const string DetpTreeListCacheKey = "adnc:usr:depts:tree";
         public const string DetpSimpleTreeListCacheKey = "adnc:usr:depts:tree:simple";
 
-        public const string UserLoginInfoKeyPrefix = "adnc:usr:users:logininfo";
-        public const string SearchUsersKeyPrefix = "adnc:usr:users";
-        public const string SearchOperationLogsKeyPrefix = "adnc:usr:logs";
+        public const string RoleListCacheKey = "adnc:usr:roles:list";
 
-        public const string RoleAllCacheKey = "adnc:usr:roles";
-
+        //cache prefix
+        public const string UserValidateInfoKeyPrefix = "adnc:usr:users:validateinfo";
     }
 }

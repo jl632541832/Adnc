@@ -1,10 +1,10 @@
-﻿using Microsoft.Extensions.Configuration;
-using Autofac;
-using Adnc.Infra.Caching.Configurations;
-using Adnc.Infra.Caching.StackExchange;
+﻿using Adnc.Infra.Caching.Configurations;
 using Adnc.Infra.Caching.Core.Serialization;
-using Adnc.Infra.Core.Interceptor;
 using Adnc.Infra.Caching.Interceptor.Castle;
+using Adnc.Infra.Caching.StackExchange;
+using Adnc.Infra.Core.Interceptor;
+using Autofac;
+using Microsoft.Extensions.Configuration;
 
 namespace Adnc.Infra.Caching
 {
@@ -30,10 +30,10 @@ namespace Adnc.Infra.Caching
             builder.RegisterInstance(_cacheOptions);
             builder.RegisterType<DefaultDatabaseProvider>().As<IRedisDatabaseProvider>().SingleInstance();
             builder.RegisterType<DefaultCachingKeyGenerator>().As<ICachingKeyGenerator>().SingleInstance();
-            builder.RegisterType<DefaultRedisProvider>().As<IRedisProvider, ICacheProvider, IDistributedLocker>().SingleInstance();
+            builder.RegisterType<DefaultRedisProvider>().As<IRedisProvider, IDistributedLocker, ICacheProvider>().SingleInstance();
             builder.RegisterAssemblyTypes(this.ThisAssembly)
                        .Where(t => t.IsAssignableTo<ICachingSerializer>())
-                       .AsImplementedInterfaces()
+                       .As<ICachingSerializer>()
                        .SingleInstance();
             builder.RegisterType<CachingInterceptor>().InstancePerLifetimeScope();
         }

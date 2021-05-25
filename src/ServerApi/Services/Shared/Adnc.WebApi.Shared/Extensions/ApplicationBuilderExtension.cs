@@ -1,17 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using HealthChecks.UI.Client;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.OpenApi.Models;
-using Microsoft.IdentityModel.Logging;
+﻿using Adnc.Infra.Consul;
 using Adnc.WebApi.Shared;
 using Adnc.WebApi.Shared.Middleware;
-using Adnc.Infra.Consul;
 using DotNetCore.CAP.Dashboard.NodeDiscovery;
+using HealthChecks.UI.Client;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Logging;
+using Microsoft.OpenApi.Models;
+using System;
+using System.Collections.Generic;
 
 namespace Microsoft.AspNetCore.Builder
 {
@@ -107,6 +108,8 @@ namespace Microsoft.AspNetCore.Builder
             var consulAdderss = new Uri(consulConfig.ConsulUrl);
             var discoverOptions = app.ApplicationServices.GetService<DiscoveryOptions>();
             var currenServerAddress = app.GetServiceAddress(consulConfig);
+            var logger = app.ApplicationServices.GetRequiredService<ILogger<SharedServicesRegistration>>();
+            logger.LogInformation("CapServiceAddress:{0}:", $"{ currenServerAddress.Host}:{ currenServerAddress.Port }");
             discoverOptions.DiscoveryServerHostName = consulAdderss.Host;
             discoverOptions.DiscoveryServerPort = consulAdderss.Port;
             discoverOptions.CurrentNodeHostName = currenServerAddress.Host;

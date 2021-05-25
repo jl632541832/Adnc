@@ -1,11 +1,11 @@
-﻿using System;
-using System.Linq;
-using System.Collections.Generic;
+﻿using Adnc.Infra.Caching.Configurations;
+using Adnc.Infra.Caching.Core;
+using Adnc.Infra.Caching.Core.Serialization;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
-using Adnc.Infra.Caching.Core;
-using Adnc.Infra.Caching.Configurations;
-using Adnc.Infra.Caching.Core.Serialization;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Adnc.Infra.Caching.StackExchange
 {
@@ -43,6 +43,8 @@ namespace Adnc.Infra.Caching.StackExchange
         /// The options.
         /// </summary>
         private readonly CacheOptions _cacheOptions;
+
+        public override CacheOptions CacheOptions => _cacheOptions;
 
         /// <summary>
         /// The cache stats.
@@ -98,6 +100,17 @@ namespace Adnc.Infra.Caching.StackExchange
             ArgumentCheck.NotNullOrWhiteSpace(cacheKey, nameof(cacheKey));
             ArgumentCheck.NotNegativeOrZero(expiration, nameof(expiration));
 
+            if (!_cacheOptions.PenetrationSetting.Disable)
+            {
+                var exists = _redisDb.BloomExistsAsync(_cacheOptions.PenetrationSetting.BloomFilterSetting.Name, cacheKey).GetAwaiter().GetResult();
+                if (!exists)
+                {
+                    if (_cacheOptions.EnableLogging)
+                        _logger?.LogInformation($"Cache Penetrated : cachekey = {cacheKey}");
+                    return CacheValue<T>.NoValue;
+                }
+            }
+
             var result = _redisDb.StringGet(cacheKey);
             if (!result.IsNull)
             {
@@ -122,19 +135,27 @@ namespace Adnc.Infra.Caching.StackExchange
                 return Get(cacheKey, dataRetriever, expiration);
             }
 
-            var item = dataRetriever();
-            if (item != null)
+            try
             {
-                Set(cacheKey, item, expiration);
-                //remove mutex key
-                _redisDb.SafedUnLock(cacheKey, flag.LockValue);
-                return new CacheValue<T>(item, true);
+                var item = dataRetriever();
+                if (item != null)
+                {
+                    Set(cacheKey, item, expiration);
+                    return new CacheValue<T>(item, true);
+                }
+                else
+                {
+                    return CacheValue<T>.NoValue;
+                }
             }
-            else
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message, ex);
+            }
+            finally
             {
                 //remove mutex key
                 _redisDb.SafedUnLock(cacheKey, flag.LockValue);
-                return CacheValue<T>.NoValue;
             }
         }
 
@@ -147,6 +168,17 @@ namespace Adnc.Infra.Caching.StackExchange
         protected override CacheValue<T> BaseGet<T>(string cacheKey)
         {
             ArgumentCheck.NotNullOrWhiteSpace(cacheKey, nameof(cacheKey));
+
+            if (!_cacheOptions.PenetrationSetting.Disable)
+            {
+                var exists = _redisDb.BloomExistsAsync(_cacheOptions.PenetrationSetting.BloomFilterSetting.Name, cacheKey).GetAwaiter().GetResult();
+                if (!exists)
+                {
+                    if (_cacheOptions.EnableLogging)
+                        _logger?.LogInformation($"Cache Penetrated : cachekey = {cacheKey}");
+                    return CacheValue<T>.NoValue;
+                }
+            }
 
             var result = _redisDb.StringGet(cacheKey);
             if (!result.IsNull)
@@ -243,9 +275,9 @@ namespace Adnc.Infra.Caching.StackExchange
         /// </summary>
         /// <returns>The redis keys.</returns>
         /// <remarks>
-        /// If your Redis Servers support command SCAN , 
+        /// If your Redis Servers support command SCAN ,
         /// IServer.Keys will use command SCAN to find out the keys.
-        /// Following 
+        /// Following
         /// https://github.com/StackExchange/StackExchange.Redis/blob/master/StackExchange.Redis/StackExchange/Redis/RedisServer.cs#L289
         /// </remarks>
         /// <param name="pattern">Pattern.</param>
