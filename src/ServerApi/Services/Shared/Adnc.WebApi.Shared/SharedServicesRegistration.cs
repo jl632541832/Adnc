@@ -10,12 +10,19 @@ using Adnc.Infra.Helper;
 using Adnc.Infra.Mongo;
 using Adnc.Infra.Mongo.Configuration;
 using Adnc.Infra.Mongo.Extensions;
+using Adnc.Shared.ConfigModels;
 using Adnc.Shared.RpcServices;
 using Adnc.WebApi.Shared.Extensions;
 using DotNetCore.CAP;
 using DotNetCore.CAP.Dashboard;
 using DotNetCore.CAP.Dashboard.NodeDiscovery;
 using FluentValidation.AspNetCore;
+using Hangfire;
+using Hangfire.Console;
+using Hangfire.Mongo;
+using Hangfire.Mongo.Migration.Strategies;
+using Hangfire.Mongo.Migration.Strategies.Backup;
+using MicroElements.Swashbuckle.FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -31,12 +38,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using MongoDB.Driver;
 using Polly;
 using Polly.Timeout;
 using Refit;
 using SkyApm.Diagnostics.CAP;
 using SkyApm.Utilities.DependencyInjection;
-using Swashbuckle.AspNetCore.Swagger;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
@@ -49,6 +56,7 @@ using System.Net.Sockets;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using ProblemDetails = Microsoft.AspNetCore.Mvc.ProblemDetails;
 
@@ -60,6 +68,7 @@ namespace Adnc.WebApi.Shared
         protected readonly IServiceCollection _services;
         protected readonly IHostEnvironment _environment;
         protected readonly IServiceInfo _serviceInfo;
+        protected internal IEnumerable<Type> _schedulingJobs;
 
         /// <summary>
         /// 服务注册与系统配置
@@ -77,6 +86,7 @@ namespace Adnc.WebApi.Shared
             _environment = environment;
             _services = services;
             _serviceInfo = serviceInfo;
+            _schedulingJobs = Enumerable.Empty<Type>();
         }
 
         /// <summary>
@@ -84,11 +94,12 @@ namespace Adnc.WebApi.Shared
         /// </summary>
         public virtual void Configure()
         {
-            _services.Configure<JWTConfig>(_configuration.GetJWTSection());
+            _services.Configure<JwtConfig>(_configuration.GetJWTSection());
             _services.Configure<MongoConfig>(_configuration.GetMongoDbSection());
             _services.Configure<MysqlConfig>(_configuration.GetMysqlSection());
             _services.Configure<RabbitMqConfig>(_configuration.GetRabbitMqSection());
             _services.Configure<ConsulConfig>(_configuration.GetConsulSection());
+            _services.Configure<ThreadPoolSettings>(_configuration.GetThreadPoolSettingsSection());
         }
 
         /// <summary>
@@ -100,7 +111,7 @@ namespace Adnc.WebApi.Shared
         public virtual void AddControllers()
         {
             _services.AddControllers(options => options.Filters.Add(typeof(CustomExceptionFilterAttribute)))
-                     .AddJsonOptions(options =>
+                          .AddJsonOptions(options =>
                      {
                          options.JsonSerializerOptions.Converters.Add(new DateTimeConverter());
                          options.JsonSerializerOptions.Converters.Add(new DateTimeNullableConverter());
@@ -114,7 +125,7 @@ namespace Adnc.WebApi.Shared
                          //匿名类型
                          options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
                      })
-                     .AddFluentValidation(cfg =>
+                          .AddFluentValidation(cfg =>
                      {
                          //Continue 验证失败，继续验证其他项
                          cfg.ValidatorOptions.CascadeMode = FluentValidation.CascadeMode.Continue;
@@ -132,14 +143,10 @@ namespace Adnc.WebApi.Shared
                 {
                     var problemDetails = new ProblemDetails
                     {
-                        Detail = context.ModelState.GetValidationSummary("<br>")
-                        ,
-                        Title = "参数错误"
-                        ,
-                        Status = (int)HttpStatusCode.BadRequest
-                        ,
-                        Type = "https://httpstatuses.com/400"
-                        ,
+                        Detail = context.ModelState.GetValidationSummary("<br>"),
+                        Title = "参数错误",
+                        Status = (int)HttpStatusCode.BadRequest,
+                        Type = "https://httpstatuses.com/400",
                         Instance = context.HttpContext.Request.Path
                     };
 
@@ -165,7 +172,7 @@ namespace Adnc.WebApi.Shared
             {
                 options.UseMySql(mysqlConfig.ConnectionString, serverVersion, optionsBuilder =>
                 {
-                    optionsBuilder.MinBatchSize(2);
+                    optionsBuilder.MinBatchSize(4);
                     optionsBuilder.CommandTimeout(10);
                     optionsBuilder.MigrationsAssembly(_serviceInfo.AssemblyName.Replace("WebApi", "Migrations"));
                     optionsBuilder.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
@@ -202,7 +209,7 @@ namespace Adnc.WebApi.Shared
         /// </summary>
         public virtual void AddJWTAuthentication()
         {
-            var jwtConfig = _configuration.GetJWTSection().Get<JWTConfig>();
+            var jwtConfig = _configuration.GetJWTSection().Get<JwtConfig>();
 
             //认证配置
             _services.AddAuthentication(options =>
@@ -221,7 +228,11 @@ namespace Adnc.WebApi.Shared
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfig.SymmetricSecurityKey)),
                     ValidateAudience = false,
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromMinutes(jwtConfig.ClockSkew)
+                    ClockSkew = TimeSpan.FromSeconds(jwtConfig.ClockSkew),
+                    //AudienceValidator = (m, n, z) =>
+                    //{
+                    //    return m != null && m.FirstOrDefault().Equals(Const.ValidAudience);
+                    //}
                 };
                 options.Events = new JwtBearerEvents
                 {
@@ -292,7 +303,7 @@ namespace Adnc.WebApi.Shared
         {
             _services.AddAuthorization(options =>
             {
-                options.AddPolicy(Permission.Policy, policy => policy.Requirements.Add(new PermissionRequirement()));
+                options.AddPolicy(AuthorizePolicy.Default, policy => policy.Requirements.Add(new PermissionRequirement()));
             });
             _services.AddScoped<IAuthorizationHandler, THandler>();
         }
@@ -308,9 +319,9 @@ namespace Adnc.WebApi.Shared
                 options.AddPolicy(_serviceInfo.CorsPolicy, policy =>
                 {
                     policy.WithOrigins(_corsHosts)
-                          .AllowAnyHeader()
-                          .AllowAnyMethod()
-                          .AllowCredentials();
+                              .AllowAnyHeader()
+                              .AllowAnyMethod()
+                              .AllowCredentials();
                 });
             });
         }
@@ -348,14 +359,14 @@ namespace Adnc.WebApi.Shared
                                 Id = "Bearer"
                             }
                         },
-                        new string[] {}
+                        Array.Empty<string>()
                     }
                 });
                 c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"{_serviceInfo.AssemblyName}.xml"));
                 c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"{_serviceInfo.AssemblyName.Replace("WebApi", "Application.Contracts")}.xml"));
-                // Adds fluent validation rules to swagger
-                c.AddFluentValidationRules();
             });
+
+            _services.AddFluentValidationRulesToSwagger();
         }
 
         /// <summary>
@@ -367,19 +378,19 @@ namespace Adnc.WebApi.Shared
             var mongoConfig = _configuration.GetMongoDbSection().Get<MongoConfig>();
             var redisConfig = _configuration.GetRedisSection().Get<RedisConfig>();
             _services.AddHealthChecks()
-                     //.AddProcessAllocatedMemoryHealthCheck(maximumMegabytesAllocated: 200, tags: new[] { "memory" })
-                     //.AddProcessHealthCheck("ProcessName", p => p.Length > 0) // check if process is running
-                     .AddMySql(mysqlConfig.ConnectionString)
-                     .AddMongoDb(mongoConfig.ConnectionString)
-                     .AddRabbitMQ(x =>
-                     {
-                         return
-                         RabbitMqConnection.GetInstance(x.GetService<IOptionsMonitor<RabbitMqConfig>>()
-                             , x.GetService<ILogger<dynamic>>()
-                         ).Connection;
-                     })
-                    //.AddUrlGroup(new Uri("https://localhost:5001/weatherforecast"), "index endpoint")
-                    .AddRedis(redisConfig.dbconfig.ConnectionString);
+                         //.AddProcessAllocatedMemoryHealthCheck(maximumMegabytesAllocated: 200, tags: new[] { "memory" })
+                         //.AddProcessHealthCheck("ProcessName", p => p.Length > 0) // check if process is running
+                         .AddMySql(mysqlConfig.ConnectionString)
+                         .AddMongoDb(mongoConfig.ConnectionString)
+                         .AddRabbitMQ(x =>
+                         {
+                             return
+                             RabbitMqConnection.GetInstance(x.GetService<IOptionsMonitor<RabbitMqConfig>>()
+                                 , x.GetService<ILogger<dynamic>>()
+                             ).Connection;
+                         })
+                        //.AddUrlGroup(new Uri("https://localhost:5001/weatherforecast"), "index endpoint")
+                        .AddRedis(redisConfig.dbconfig.ConnectionString);
         }
 
         /// <summary>
@@ -455,13 +466,13 @@ namespace Adnc.WebApi.Shared
                         var consulAdderss = new Uri(consulConfig.ConsulUrl);
 
                         var hostIps = NetworkInterface
-                                            .GetAllNetworkInterfaces()
-                                            .Where(network => network.OperationalStatus == OperationalStatus.Up)
-                                            .Select(network => network.GetIPProperties())
-                                            .OrderByDescending(properties => properties.GatewayAddresses.Count)
-                                            .SelectMany(properties => properties.UnicastAddresses)
-                                            .Where(address => !IPAddress.IsLoopback(address.Address) && address.Address.AddressFamily == AddressFamily.InterNetwork)
-                                            .ToArray();
+                                                                        .GetAllNetworkInterfaces()
+                                                                        .Where(network => network.OperationalStatus == OperationalStatus.Up)
+                                                                        .Select(network => network.GetIPProperties())
+                                                                        .OrderByDescending(properties => properties.GatewayAddresses.Count)
+                                                                        .SelectMany(properties => properties.UnicastAddresses)
+                                                                        .Where(address => !IPAddress.IsLoopback(address.Address) && address.Address.AddressFamily == AddressFamily.InterNetwork)
+                                                                        .ToArray();
 
                         var currenServerAddress = hostIps.First().Address.MapToIPv4().ToString();
 
@@ -484,8 +495,8 @@ namespace Adnc.WebApi.Shared
         /// <param name="serviceName">在注册中心注册的服务名称，或者服务的Url</param>
         /// <param name="policies">Polly策略</param>
         public virtual void AddRpcService<TRpcService>(string serviceName
-        , List<IAsyncPolicy<HttpResponseMessage>> policies
-        ) where TRpcService : class, IRpcService
+        , List<IAsyncPolicy<HttpResponseMessage>> policies)
+         where TRpcService : class, IRpcService
         {
             var prefix = serviceName.Substring(0, 7);
             bool isConsulAdderss = prefix != "http://" && prefix != "https:/";
@@ -493,17 +504,71 @@ namespace Adnc.WebApi.Shared
             var refitSettings = new RefitSettings(new SystemTextJsonContentSerializer(SystemTextJsonHelper.GetAdncDefaultOptions()));
             //注册RefitClient,设置httpclient生命周期时间，默认也是2分钟。
             var clientbuilder = _services.AddRefitClient<TRpcService>(refitSettings)
-                                         .SetHandlerLifetime(TimeSpan.FromMinutes(2));
+                                                         .SetHandlerLifetime(TimeSpan.FromMinutes(2));
             //如果参数是服务名字，那么需要从consul获取地址
             if (isConsulAdderss)
                 clientbuilder.ConfigureHttpClient(client => client.BaseAddress = new Uri($"http://{serviceName}"))
-                             .AddHttpMessageHandler<ConsulDiscoverDelegatingHandler>();
+                                    .AddHttpMessageHandler<ConsulDiscoverDelegatingHandler>();
             else
                 clientbuilder.ConfigureHttpClient(client => client.BaseAddress = new Uri(serviceName))
-                             .AddHttpMessageHandler<SimpleDiscoveryDelegatingHandler>();
+                                    .AddHttpMessageHandler<SimpleDiscoveryDelegatingHandler>();
 
             //添加polly相关策略
             policies?.ForEach(policy => clientbuilder.AddPolicyHandler(policy));
+        }
+
+
+        /// <summary>
+        /// 添加任务调度
+        /// </summary>
+        /// <typeparam name="TSchedulingJob"></typeparam>
+        public virtual void AddSchedulingJobs<TSchedulingJob>()
+            where TSchedulingJob : class, IRecurringSchedulingJobs
+        {
+            _schedulingJobs = _schedulingJobs.Concat(new[] { typeof(TSchedulingJob) });
+        }
+
+        /// <summary>
+        ///  注册 Hangfire 任务调度
+        /// </summary>
+        public virtual void AddHangfire()
+        {
+            var hangfireConfig = _configuration.GetHangfireSection().Get<HangfireConfig>();
+
+            var mongoUrlBuilder = new MongoUrlBuilder(hangfireConfig.ConnectionString);
+            var mongoClient = new MongoClient(mongoUrlBuilder.ToMongoUrl());
+
+            _services.AddHangfire(config =>
+            {
+                config.SetDataCompatibilityLevel(CompatibilityLevel.Version_170);
+                config.UseSimpleAssemblyNameTypeSerializer();
+                config.UseRecommendedSerializerSettings();
+                // 设置 MongoDB 为持久化存储器
+                config.UseMongoStorage(mongoClient, mongoUrlBuilder.DatabaseName, new MongoStorageOptions
+                {
+                    MigrationOptions = new MongoMigrationOptions
+                    {
+                        MigrationStrategy = new MigrateMongoMigrationStrategy(),
+                        BackupStrategy = new CollectionMongoBackupStrategy()
+                    },
+                    ConnectionCheckTimeout = TimeSpan.FromMinutes(hangfireConfig.ConnectionCheckTimeout),
+                    QueuePollInterval = TimeSpan.FromMinutes(hangfireConfig.QueuePollInterval),
+                    CheckConnection = true,
+                })
+                // 任务超时时间
+                .JobExpirationTimeout = TimeSpan.FromMinutes(hangfireConfig.JobTimeout);
+                // 打印日志到控制面板和在线进度条展示
+                config.UseConsole();
+                config.UseRecurringJob(_schedulingJobs.ToArray());
+            });
+            // 将 Hangfire 服务添加为后台托管服务
+            _services.AddHangfireServer((service, options) =>
+            {
+                options.ServerName = $"{_serviceInfo.FullName.Replace(".", "/")}";
+                options.ShutdownTimeout = TimeSpan.FromMinutes(10);
+                // 最大 Job 处理并发数量的阈值，根据机子处理器数量设置或默认20
+                options.WorkerCount = Math.Max(Environment.ProcessorCount, 20);
+            });
         }
 
         /// <summary>

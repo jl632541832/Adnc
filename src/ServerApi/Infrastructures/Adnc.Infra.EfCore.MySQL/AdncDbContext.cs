@@ -1,14 +1,15 @@
 ﻿using Adnc.Infra.Entities;
 using Adnc.Infra.IRepositories;
-using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Adnc.Infra.EfCore.MySQL
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S125:Sections of code should not be commented out", Justification = "<挂起>")]
     public class AdncDbContext : DbContext
     {
         private readonly IOperater _operater;
@@ -57,20 +58,16 @@ namespace Adnc.Infra.EfCore.MySQL
             foreach (var entry in allBasicAuditEntities)
             {
                 var entity = entry.Entity;
-                {
-                    entity.CreateBy = _operater.Id;
-                    entity.CreateTime = DateTime.Now;
-                }
+                entity.CreateBy = _operater.Id;
+                entity.CreateTime = DateTime.Now;
             }
 
             var auditFullEntities = ChangeTracker.Entries<IFullAuditInfo>().Where(x => x.State == EntityState.Modified);
             foreach (var entry in auditFullEntities)
             {
                 var entity = entry.Entity;
-                {
-                    entity.ModifyBy = _operater.Id;
-                    entity.ModifyTime = DateTime.Now;
-                }
+                entity.ModifyBy = _operater.Id;
+                entity.ModifyTime = DateTime.Now;
             }
 
             return allEntities.Count();

@@ -1,4 +1,4 @@
-﻿using JetBrains.Annotations;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -213,7 +213,7 @@ namespace System
             {
                 return string.Empty;
             }
-            return @this.Substring(startIndex);
+            return @this[startIndex..];
         }
 
         /// <summary>
@@ -248,7 +248,7 @@ namespace System
             {
                 return string.Empty;
             }
-            return @this.Substring(@this.Length + startIndex);
+            return @this[(@this.Length + startIndex)..];
         }
 
         /// <summary>
@@ -387,10 +387,7 @@ namespace System
         /// <returns></returns>
         public static long? ToLong(this string @this)
         {
-            long result;
-            bool status = long.TryParse(@this, out result);
-
-            //return status ? result : null;
+            bool status = long.TryParse(@this, out long result);
 
             if (status)
                 return result;
