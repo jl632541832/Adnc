@@ -1,17 +1,6 @@
 ﻿using Adnc.Cus.Entities;
 using Adnc.Infra.EfCore.MySQL;
 using Adnc.Infra.Helper;
-using Adnc.Infra.Helper.IdGeneraterInternal;
-using Adnc.Infra.IRepositories;
-using Adnc.UnitTest.Fixtures;
-using Autofac;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Threading.Tasks;
-using Xunit;
-using Xunit.Abstractions;
 
 namespace Adnc.UnitTest.EFCore
 {
@@ -19,43 +8,30 @@ namespace Adnc.UnitTest.EFCore
     {
         private readonly ITestOutputHelper _output;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IOperater _userContext;
+        private readonly Operater _userContext;
         private readonly IEfRepository<Customer> _customerRsp;
         private readonly IEfRepository<CustomerFinance> _cusFinanceRsp;
         private readonly IEfRepository<CustomerTransactionLog> _custLogsRsp;
         private readonly AdncDbContext _dbContext;
-
         private readonly EfCoreDbcontextFixture _fixture;
 
         public EfCoreRepositoryTests(EfCoreDbcontextFixture fixture, ITestOutputHelper output)
         {
             _fixture = fixture;
             _output = output;
-            _unitOfWork = _fixture.Container.Resolve<IUnitOfWork>();
-            _userContext = _fixture.Container.Resolve<IOperater>();
-            _customerRsp = _fixture.Container.Resolve<IEfRepository<Customer>>();
-            _cusFinanceRsp = _fixture.Container.Resolve<IEfRepository<CustomerFinance>>();
-            _custLogsRsp = _fixture.Container.Resolve<IEfRepository<CustomerTransactionLog>>();
-            _dbContext = _fixture.Container.Resolve<AdncDbContext>();
+            _unitOfWork = _fixture.Container.GetRequiredService<IUnitOfWork>();
+            _userContext = _fixture.Container.GetRequiredService<Operater>();
+            _customerRsp = _fixture.Container.GetRequiredService<IEfRepository<Customer>>();
+            _cusFinanceRsp = _fixture.Container.GetRequiredService<IEfRepository<CustomerFinance>>();
+            _custLogsRsp = _fixture.Container.GetRequiredService<IEfRepository<CustomerTransactionLog>>();
+            _dbContext = _fixture.Container.GetRequiredService<AdncDbContext>();
 
-            if (YitterSnowFlake.CurrentWorkerId < 0)
-                YitterSnowFlake.CurrentWorkerId = 63;
-
-            Initialize().Wait();
+            IdGenerater.SetWorkerId(1);
         }
 
         protected static Expression<Func<TEntity, object>>[] UpdatingProps<TEntity>(params Expression<Func<TEntity, object>>[] expressions)
         {
             return expressions;
-        }
-
-        private async Task Initialize()
-        {
-            _userContext.Id = 1600000000000;
-            _userContext.Account = "alpha2008";
-            _userContext.Name = "余小猫";
-
-            await Task.CompletedTask;
         }
 
         /// <summary>
@@ -82,10 +58,10 @@ namespace Adnc.UnitTest.EFCore
 
             await _customerRsp.InsertAsync(cusotmer);
 
-            var newCust = await _customerRsp.QueryAsync<Customer>("SELECT *  FROM Customer WHERE Id=@Id",new { Id= id });
+            var newCust = await _customerRsp.QueryAsync<Customer>("SELECT *  FROM Customer WHERE Id=@Id", new { Id = id });
             Assert.NotEmpty(newCust);
 
-            var newCustAccounts= await _customerRsp.QueryAsync<string>("SELECT Account  FROM CustomerFinance WHERE Account=@account", new { account = newCust.First().Account });
+            var newCustAccounts = await _customerRsp.QueryAsync<string>("SELECT Account  FROM CustomerFinance WHERE Account=@account", new { account = newCust.First().Account });
             Assert.Equal(newCust.First().Account, newCustAccounts.First());
         }
 
@@ -129,7 +105,7 @@ namespace Adnc.UnitTest.EFCore
             //实体已经被跟踪
             customer.Realname = "被跟踪01";
             await _customerRsp.UpdateAsync(customer);
-            var newCust1 = await _customerRsp.QueryAsync<Customer>("SELECT * FROM Customer WHERE Id=@Id", new { Id= id0 });
+            var newCust1 = await _customerRsp.QueryAsync<Customer>("SELECT * FROM Customer WHERE Id=@Id", new { Id = id0 });
             Assert.Equal("被跟踪01", newCust1.FirstOrDefault().Realname);
 
             var customerId = (await _customerRsp.QueryAsync<long>("SELECT Id  FROM CustomerFinance limit 0,1")).FirstOrDefault();

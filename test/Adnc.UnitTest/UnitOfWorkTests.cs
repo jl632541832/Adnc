@@ -1,18 +1,12 @@
 ﻿using Adnc.Cus.Entities;
 using Adnc.Infra.Helper;
-using Adnc.Infra.IRepositories;
-using Adnc.UnitTest.Fixtures;
-using Autofac;
-using System.Threading.Tasks;
-using Xunit;
-using Xunit.Abstractions;
 
 namespace Adnc.UnitTest.CoreService
 {
     public class UnitOfWorkTests : IClassFixture<CoreServiceFixture>
     {
         private readonly ITestOutputHelper _output;
-        private readonly IOperater _userContext;
+        private readonly Operater _userContext;
         private readonly IEfRepository<Customer> _cusRsp;
         private readonly CoreServiceFixture _fixture;
 
@@ -20,16 +14,8 @@ namespace Adnc.UnitTest.CoreService
         {
             _fixture = fixture;
             _output = output;
-            _cusRsp = _fixture.Container.Resolve<IEfRepository<Customer>>();
-            _userContext = _fixture.Container.Resolve<IOperater>();
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            _userContext.Id = 1600000000000;
-            _userContext.Account = "alpha2008";
-            _userContext.Name = "余小猫";
+            _cusRsp = _fixture.Container.GetRequiredService<IEfRepository<Customer>>();
+            _userContext = _fixture.Container.GetRequiredService<Operater>();
         }
 
         /// <summary>

@@ -1,18 +1,9 @@
-﻿using Adnc.Infra.Entities;
-using System;
-using System.Collections.Generic;
-using System.Reflection;
+﻿namespace Adnc.Maint.Entities;
 
-namespace Adnc.Maint.Entities
+public class EntityInfo : AbstractEntityInfo
 {
-    public class EntityInfo : AbstractEntityInfo
+    public override IEnumerable<EntityTypeInfo> GetEntitiesTypeInfo()
     {
-        public override (Assembly Assembly, IEnumerable<Type> Types) GetEntitiesInfo()
-        {
-            var assembly = this.GetType().Assembly;
-            var entityTypes = base.GetEntityTypes(assembly);
-
-            return (assembly, entityTypes);
-        }
+        return base.GetEntityTypes(this.GetType().Assembly).Select(x => new EntityTypeInfo() { Type = x, DataSeeding = default });
     }
 }
