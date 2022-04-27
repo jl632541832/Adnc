@@ -1,4 +1,5 @@
 ﻿using Adnc.Cus.Entities;
+using Adnc.Infra.IRepositories;
 using Adnc.Infra.EfCore.MySQL;
 using Adnc.Infra.Helper;
 
@@ -8,7 +9,6 @@ namespace Adnc.UnitTest.EFCore
     {
         private readonly ITestOutputHelper _output;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly Operater _userContext;
         private readonly IEfRepository<Customer> _customerRsp;
         private readonly IEfRepository<CustomerFinance> _cusFinanceRsp;
         private readonly IEfRepository<CustomerTransactionLog> _custLogsRsp;
@@ -20,19 +20,15 @@ namespace Adnc.UnitTest.EFCore
             _fixture = fixture;
             _output = output;
             _unitOfWork = _fixture.Container.GetRequiredService<IUnitOfWork>();
-            _userContext = _fixture.Container.GetRequiredService<Operater>();
             _customerRsp = _fixture.Container.GetRequiredService<IEfRepository<Customer>>();
             _cusFinanceRsp = _fixture.Container.GetRequiredService<IEfRepository<CustomerFinance>>();
             _custLogsRsp = _fixture.Container.GetRequiredService<IEfRepository<CustomerTransactionLog>>();
             _dbContext = _fixture.Container.GetRequiredService<AdncDbContext>();
-
-            IdGenerater.SetWorkerId(1);
+            if (IdGenerater.CurrentWorkerId < 0)
+                IdGenerater.SetWorkerId(1);
         }
 
-        protected static Expression<Func<TEntity, object>>[] UpdatingProps<TEntity>(params Expression<Func<TEntity, object>>[] expressions)
-        {
-            return expressions;
-        }
+        protected static Expression<Func<TEntity, object>>[] UpdatingProps<TEntity>(params Expression<Func<TEntity, object>>[] expressions) => expressions;
 
         /// <summary>
         /// 插入
@@ -58,10 +54,10 @@ namespace Adnc.UnitTest.EFCore
 
             await _customerRsp.InsertAsync(cusotmer);
 
-            var newCust = await _customerRsp.QueryAsync<Customer>("SELECT *  FROM Customer WHERE Id=@Id", new { Id = id });
+            var newCust = await _customerRsp.AdoQuerier.QueryAsync<Customer>("SELECT *  FROM Customer WHERE Id=@Id", new { Id = id });
             Assert.NotEmpty(newCust);
 
-            var newCustAccounts = await _customerRsp.QueryAsync<string>("SELECT Account  FROM CustomerFinance WHERE Account=@account", new { account = newCust.First().Account });
+            var newCustAccounts = await _customerRsp.AdoQuerier.QueryAsync<string>("SELECT Account  FROM CustomerFinance WHERE Account=@account", new { account = newCust.First().Account });
             Assert.Equal(newCust.First().Account, newCustAccounts.First());
         }
 
@@ -97,7 +93,7 @@ namespace Adnc.UnitTest.EFCore
         [Fact]
         public async Task TestUpdateWithTraking()
         {
-            var ids = await _customerRsp.QueryAsync<long>("SELECT Id FROM Customer ORDER BY ID ASC LIMIT 0,2");
+            var ids = await _customerRsp.AdoQuerier.QueryAsync<long>("SELECT Id FROM Customer ORDER BY ID ASC LIMIT 0,2");
             var id0 = ids.ToArray()[0];
 
             //IEfRepository<>默认关闭了跟踪，需要手动开启跟踪
@@ -105,10 +101,10 @@ namespace Adnc.UnitTest.EFCore
             //实体已经被跟踪
             customer.Realname = "被跟踪01";
             await _customerRsp.UpdateAsync(customer);
-            var newCust1 = await _customerRsp.QueryAsync<Customer>("SELECT * FROM Customer WHERE Id=@Id", new { Id = id0 });
+            var newCust1 = await _customerRsp.AdoQuerier.QueryAsync<Customer>("SELECT * FROM Customer WHERE Id=@Id", new { Id = id0 });
             Assert.Equal("被跟踪01", newCust1.FirstOrDefault().Realname);
 
-            var customerId = (await _customerRsp.QueryAsync<long>("SELECT Id  FROM CustomerFinance limit 0,1")).FirstOrDefault();
+            var customerId = (await _customerRsp.AdoQuerier.QueryAsync<long>("SELECT Id  FROM CustomerFinance limit 0,1")).FirstOrDefault();
             customer = await _customerRsp.FindAsync(x => x.Id == customerId, x => x.FinanceInfo, noTracking: false);
             customer.Account = "主从更新01";
             customer.FinanceInfo.Account = "主从更新01";
@@ -124,14 +120,14 @@ namespace Adnc.UnitTest.EFCore
         [Fact]
         public async Task TestUpdateAssigns()
         {
-            var ids = await _customerRsp.QueryAsync<long>("SELECT Id FROM Customer ORDER BY ID ASC LIMIT 0,4");
+            var ids = await _customerRsp.AdoQuerier.QueryAsync<long>("SELECT Id FROM Customer ORDER BY ID ASC LIMIT 0,4");
             var id0 = ids.ToArray()[0];
             var customer = await _customerRsp.FindAsync(id0, noTracking: false);
             //实体已经被跟踪并且指定更新列,     更新列没有指定Realname，该列不会被更新
             customer.Nickname = "更新指定列";
             customer.Realname = "不指定该列";
             await _customerRsp.UpdateAsync(customer, UpdatingProps<Customer>(c => c.Nickname));
-            var newCus = (await _customerRsp.QueryAsync<Customer>("SELECT * FROM Customer WHERE ID=@ID", customer)).FirstOrDefault();
+            var newCus = (await _customerRsp.AdoQuerier.QueryAsync<Customer>("SELECT * FROM Customer WHERE ID=@ID", customer)).FirstOrDefault();
             Assert.Equal("更新指定列", newCus.Nickname);
             Assert.NotEqual("不指定该列", newCus.Realname);
 
@@ -142,7 +138,7 @@ namespace Adnc.UnitTest.EFCore
             customer1.Realname = "没被跟踪01";
             customer1.Nickname = "新昵称01";
             await _customerRsp.UpdateAsync(customer1, UpdatingProps<Customer>(c => c.Realname, c => c.Nickname));
-            var newCus1 = (await _customerRsp.QueryAsync<Customer>("SELECT * FROM Customer WHERE ID=@ID", new { Id = id1 })).FirstOrDefault();
+            var newCus1 = (await _customerRsp.AdoQuerier.QueryAsync<Customer>("SELECT * FROM Customer WHERE ID=@ID", new { Id = id1 })).FirstOrDefault();
             Assert.Equal("没被跟踪01", newCus1.Realname);
             Assert.Equal("新昵称01", newCus1.Nickname);
             Assert.NotEqual(customer1.Account, newCus1.Account);
@@ -181,7 +177,7 @@ namespace Adnc.UnitTest.EFCore
             Assert.Equal(2, total);
 
             await _customerRsp.UpdateRangeAsync(c => c.Id == cus1.Id || c.Id == cus2.Id, x => new Customer { Realname = "批量更新" });
-            var result2 = await _customerRsp.QueryAsync<Customer>("SELECT * FROM Customer WHERE ID in @ids", new { ids = new[] { cus1.Id, cus2.Id } });
+            var result2 = await _customerRsp.AdoQuerier.QueryAsync<Customer>("SELECT * FROM Customer WHERE ID in @ids", new { ids = new[] { cus1.Id, cus2.Id } });
             Assert.NotEmpty(result2);
             Assert.Equal("批量更新", result2.FirstOrDefault().Realname);
             Assert.Equal("批量更新", result2.LastOrDefault().Realname);
@@ -194,7 +190,7 @@ namespace Adnc.UnitTest.EFCore
             var cus2 = await _customerRsp.FindAsync(x => x.Id < cus1.Id, navigationPropertyPath: null, x => x.Id, false, noTracking: false);
             cus2.Nickname = "string";
             var cus3 = await _customerRsp.FindAsync(x => x.Id < cus2.Id);
-            var cus4 = (await _customerRsp.QueryAsync<Customer>($"SELECT * FROM Customer  WHERE ID<{cus3.Id} ORDER BY ID ASC  LIMIT 0,1")).FirstOrDefault();
+            var cus4 = (await _customerRsp.AdoQuerier.QueryAsync<Customer>($"SELECT * FROM Customer  WHERE ID<{cus3.Id} ORDER BY ID ASC  LIMIT 0,1")).FirstOrDefault();
 
             var propertyNameAndValues = new Dictionary<long, List<(string propertyName, dynamic propertyValue)>>
             {
@@ -253,20 +249,20 @@ namespace Adnc.UnitTest.EFCore
             Assert.Equal(customer.Id, customerFromDb.Id);
 
             await _customerRsp.DeleteAsync(customer.Id);
-            var result = await _customerRsp.QueryAsync<Customer>("SELECT * FROM Customer WHERE ID=@Id", new { customer.Id });
+            var result = await _customerRsp.AdoQuerier.QueryAsync<Customer>("SELECT * FROM Customer WHERE ID=@Id", new { customer.Id });
             Assert.Null(result);
 
             //删除，有跟踪状态
             var customer2 = await this.InsertCustomer();
             await _customerRsp.DeleteAsync(customer2.Id);
-            result = await _customerRsp.QueryAsync<Customer>("SELECT * FROM Customer WHERE ID=@Id", new { customer2.Id });
+            result = await _customerRsp.AdoQuerier.QueryAsync<Customer>("SELECT * FROM Customer WHERE ID=@Id", new { customer2.Id });
             Assert.Null(result);
 
-            var ids = await _customerRsp.QueryAsync<long>("SELECT Id FROM Customer ORDER BY ID DESC LIMIT 1");
+            var ids = await _customerRsp.AdoQuerier.QueryAsync<long>("SELECT Id FROM Customer ORDER BY ID DESC LIMIT 1");
             //删除，上下文中无该实体。
             var id = ids.First();
             await _customerRsp.DeleteAsync(id);
-            result = await _customerRsp.QueryAsync<Customer>("SELECT * FROM Customer WHERE ID=@Id", new { Id = id });
+            result = await _customerRsp.AdoQuerier.QueryAsync<Customer>("SELECT * FROM Customer WHERE ID=@Id", new { Id = id });
             Assert.Null(result);
 
             //删除不存在的记录
@@ -294,7 +290,7 @@ namespace Adnc.UnitTest.EFCore
             Assert.Equal(2, total);
 
             await _customerRsp.DeleteRangeAsync(c => c.Id == cus1.Id || c.Id == cus2.Id);
-            var result2 = await _customerRsp.QueryAsync<Customer>("SELECT * FROM Customer WHERE ID in @ids", new { ids = new[] { cus1.Id, cus2.Id } });
+            var result2 = await _customerRsp.AdoQuerier.QueryAsync<Customer>("SELECT * FROM Customer WHERE ID in @ids", new { ids = new[] { cus1.Id, cus2.Id } });
             Assert.Null(result2);
         }
 
@@ -329,7 +325,7 @@ namespace Adnc.UnitTest.EFCore
         [Fact]
         public async Task TestFind()
         {
-            var customerId = (await _customerRsp.QueryAsync<long>("SELECT CustomerId FROM CustomerTransactionLog ORDER BY ID DESC LIMIT 0,1")).FirstOrDefault();
+            var customerId = (await _customerRsp.AdoQuerier.QueryAsync<long>("SELECT CustomerId FROM CustomerTransactionLog ORDER BY ID DESC LIMIT 0,1")).FirstOrDefault();
 
             //不加载导航属性
             var customer3 = await _customerRsp.FindAsync(customerId);
@@ -390,7 +386,7 @@ namespace Adnc.UnitTest.EFCore
                         FROM `Customer` AS `c`
                         INNER JOIN `CustomerTransactionLog` AS `c0` ON `c`.`Id` = `c0`.`CustomerId`
                         WHERE `c0`.`Id` > @Id";
-            var logs = await _customerRsp.QueryAsync(sql, new { Id = 1 });
+            var logs = await _customerRsp.AdoQuerier.QueryAsync(sql, new { Id = 1 });
 
             Assert.NotEmpty(logs);
         }
@@ -411,10 +407,10 @@ namespace Adnc.UnitTest.EFCore
             result = await _customerRsp.Where(x => x.Id == 999).FirstOrDefaultAsync();
             Assert.Null(result);
 
-            var dapperResult = await _customerRsp.QueryAsync<Customer>("select * from Customer where id=999");
+            var dapperResult = await _customerRsp.AdoQuerier.QueryAsync<Customer>("select * from Customer where id=999");
             Assert.Null(dapperResult);
 
-            dynamic dapperResult2 = await _customerRsp.QueryAsync("select * from Customer where id=999");
+            dynamic dapperResult2 = await _customerRsp.AdoQuerier.QueryAsync("select * from Customer where id=999");
             Assert.Null(dapperResult2);
         }
 
@@ -520,9 +516,9 @@ namespace Adnc.UnitTest.EFCore
 
                 throw new Exception();
 
-#pragma warning disable CS0162 // 检测到无法访问的代码
+                #pragma warning disable CS0162 // 检测到无法访问的代码
                 _unitOfWork.Commit();
-#pragma warning restore CS0162 // 检测到无法访问的代码
+                #pragma warning restore CS0162 // 检测到无法访问的代码
             }
             catch (Exception)
             {
@@ -543,34 +539,42 @@ namespace Adnc.UnitTest.EFCore
             Assert.Null(financeFromDb);
         }
 
+        /// <summary>
+        ///测试savechanges被事务包裹
+        /// </summary>
+        /// <returns></returns>
         [Fact]
         public async Task TestDbContext()
         {
             var account = "alpha008";
 
             using var db = await _dbContext.Database.BeginTransactionAsync();
-            //_unitOfWork.BeginTransaction();
 
             await _customerRsp.DeleteRangeAsync(x => x.Id <= 10000);
 
             var id = IdGenerater.GetNextId();
             var customer = new Customer() { Id = id, Account = account, Nickname = "招财猫", Realname = "张发财", FinanceInfo = new CustomerFinance { Id = id, Account = account, Balance = 0 } };
 
-            _dbContext.Add<Customer>(customer);
+            _dbContext.Add(customer);
 
             await _dbContext.SaveChangesAsync();
 
             var id2 = IdGenerater.GetNextId();
             var customer2 = new Customer() { Id = id2, Account = account, Nickname = "招财猫02", Realname = "张发财02", FinanceInfo = new CustomerFinance { Id = id2, Account = account, Balance = 0 } };
 
-            _dbContext.Add<Customer>(customer2);
-            //_unitOfWork.Commit();
+            _dbContext.Add(customer2);
 
             await _dbContext.SaveChangesAsync();
 
             await db.CommitAsync();
+
+            Assert.True(true);
         }
 
+        /// <summary>
+        /// 测试SaveChanges自动事务
+        /// </summary>
+        /// <returns></returns>
         [Fact]
         public async Task TestAutoTransactions()
         {
@@ -593,15 +597,64 @@ namespace Adnc.UnitTest.EFCore
 
             await _customerRsp.InsertAsync(cusotmer);
 
-            //不受自动事务控制
-            await _customerRsp.DeleteAsync(10000);
+            //受自动事务控制
+            await _customerRsp.DeleteAsync(id);
 
             //不受自动事务控制
             await _customerRsp.DeleteRangeAsync(x => x.Id == 10000);
 
             _dbContext.SaveChanges();
-
             _dbContext.Database.AutoTransactionsEnabled = false;
+            Assert.True(true);
+        }
+
+        [Fact]
+        public async Task TestHybirdWriteAndTransaction()
+        {
+            try
+            {
+                _unitOfWork.BeginTransaction();
+
+                // insert efcore
+                var customer = await InsertCustomer();
+
+                //raw sql find
+                var sql = @"SELECT * FROM CustomerFinance WHERE Id=@Id";
+                var dbCusFinance = await _cusFinanceRsp.AdoQuerier.QueryFirstAsync(sql, new { Id = customer.Id }, _cusFinanceRsp.CurrentDbTransaction);
+                Assert.NotNull(dbCusFinance);
+
+                var sql2 = @"SELECT * FROM Customer ORDER BY Id ASC";
+                var dbCustomer = await _customerRsp.AdoQuerier.QueryFirstAsync<Customer>(sql2, null, _customerRsp.CurrentDbTransaction);
+                Assert.NotNull(dbCustomer);
+                Assert.True(dbCustomer.Id > 0);
+
+                //raw update sql
+                var rawSql1 = "update Customer set nickname='test8888' where id=1000000000";
+                var rows = await _customerRsp.ExecuteSqlRawAsync(rawSql1);
+                Assert.True(rows == 0);
+
+                //raw update formatsql
+                var newNickName = "test8888";
+                FormattableString formatSql2 = $"update Customer set nickname={newNickName} where id={dbCustomer.Id}";
+                rows = await _customerRsp.ExecuteSqlInterpolatedAsync(formatSql2);
+                Assert.True(rows > 0);
+
+                //ef search
+                var dbCustomer2 = await _customerRsp.FindAsync(dbCustomer.Id, x => x.FinanceInfo);
+                Assert.NotNull(dbCustomer2?.FinanceInfo);
+                Assert.Equal("test8888", dbCustomer2.Nickname);
+
+                _unitOfWork.Commit();
+            }
+            catch (Exception ex)
+            {
+                _unitOfWork.Rollback();
+                throw new Exception(ex.Message, ex);
+            }
+            finally
+            {
+                _unitOfWork.Dispose();
+            }
         }
 
         /// <summary>
@@ -618,7 +671,6 @@ namespace Adnc.UnitTest.EFCore
         }
 
         #region old testing codes
-
         //[Fact]
         //public async Task TestConcurrencyCheck()
         //{
@@ -781,47 +833,6 @@ namespace Adnc.UnitTest.EFCore
         //    //SELECT `s`.`ID`, `s`.`FullName`FROM `SysDept` AS `s`INNER JOIN `SysUser` AS `s0` ON `s`.`ID` = `s0`.`DeptId` WHERE `s`.`ID` > 4
         //    //Assert.NotNull(user5);
         //}
-
-        //[Fact]
-        //public async Task TestFind()
-        //{
-        //    //var dept1 = await _deptRepository.FindAsync(new object[] { (long)24 }, CancellationToken.None);
-        //    //Assert.NotNull(dept1);
-        //    var user1 = await _userRepository.FindAsync(new object[] { (long)2 }, CancellationToken.None);
-        //    Assert.NotNull(user1);
-        //}
-
-        //[Fact]
-        //public async Task TestUpdate()
-        //{
-        //    //var user1 = await _userRepository.FindAsync(new object[] { (long)3 }, CancellationToken.None);
-        //    var user1 = await _userRepository.FetchAsync(u => new { u.ID, u.Email, u.Sex }, x => x.ID == 1);
-        //    user1.Email = "1alphacn@foxmail.com";
-        //    user1.Sex = 4;
-
-        // //sql更新所有字段 var result1 = await _userRepository.UpdateAsync(user1); Assert.Equal(1, result1);
-
-        // //sql只更新指定字段 var result2 = await _userRepository.UpdateAsync(user1, u => u.Email, u =>
-        // u.Sex); Assert.Equal(1, result2);
-
-        // //Update sysuser set email = 'alphacn@foxmail.com' where id = 3; //Assert.Equal(1, result);
-
-        // //var user2 = new SysUser //{ // ID = 2, // Email = "beta@foxmail.com" //}; //var result2
-        // = await _userRepository.UpdateAsync(user2, u => u.Email); ////UPDATE `SysUser` SET
-        // `Email` = @p0, `ModifyBy` = @p1, `ModifyTime` = @p2 WHERE `ID` = @p3; //Assert.Equal(1, result2);
-
-        //    //var result3 = await _userRepository.UpdateAsync(q => q.ID > 2, q => q.Sex, 2, CancellationToken.None);
-        //    //Assert.Equal(1, result3);
-        //}
-
-        //[Fact]
-        //public async Task TestDelete()
-        //{
-        //    var result1 = await _userRepository.DeleteAsync<long>(new long[] { 5 });
-        //    Assert.Equal(1, result1);
-
-        //}
-
         #endregion old testing codes
     }
 }
