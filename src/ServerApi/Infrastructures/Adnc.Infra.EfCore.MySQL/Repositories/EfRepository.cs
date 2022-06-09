@@ -1,5 +1,5 @@
-﻿using Z.EntityFramework.Plus;
-using Microsoft.EntityFrameworkCore.Storage;
+﻿using Microsoft.EntityFrameworkCore.Storage;
+using Z.EntityFramework.Plus;
 
 namespace Adnc.Infra.EfCore.Repositories
 {
@@ -14,7 +14,7 @@ namespace Adnc.Infra.EfCore.Repositories
 
         public EfRepository(AdncDbContext dbContext, IAdoQuerierRepository adoQuerier = null)
             : base(dbContext)
-        => _adoQuerier = adoQuerier;
+            => _adoQuerier = adoQuerier;
 
         public IAdoQuerierRepository AdoQuerier
         {

@@ -1,19 +1,14 @@
-﻿using Adnc.Cus.Application.AutoMapper;
-using Adnc.Cus.Application.EventSubscribers;
-using Adnc.Shared.Application.Registrar;
-using Adnc.Shared.RpcServices.Services;
-using FluentValidation;
-using System.Reflection;
+﻿using Adnc.Shared.Application.Registrar;
 
 namespace Adnc.Cus.Application.Registrar;
 
 public sealed class CustApplicationDependencyRegistrar : AbstractApplicationDependencyRegistrar
 {
-    public override Assembly ApplicationAssembly => Assembly.GetExecutingAssembly();
+    public override Assembly ApplicationLayerAssembly => Assembly.GetExecutingAssembly();
 
-    public override Assembly ContractsAssembly => typeof(ICustomerAppService).Assembly;
+    public override Assembly ContractsLayerAssembly => typeof(ICustomerAppService).Assembly;
 
-    public override Assembly RepositoryOrDomainAssembly => typeof(EntityInfo).Assembly;
+    public override Assembly RepositoryOrDomainLayerAssembly => typeof(EntityInfo).Assembly;
 
     public CustApplicationDependencyRegistrar(IServiceCollection services) : base(services)
     {
@@ -21,24 +16,21 @@ public sealed class CustApplicationDependencyRegistrar : AbstractApplicationDepe
 
     public override void AddAdnc()
     {
-        Services.AddValidatorsFromAssembly(ContractsAssembly, ServiceLifetime.Scoped);
-        Services.AddAdncInfraAutoMapper(typeof(CustProfile));
-        AddApplicationSharedServices();
-        AddConsulServices();
-        AddCachingServices();
-        AddBloomFilterServices();
-        AddDapperRepositories();
-        AddEfCoreContextWithRepositories();
-        AddMongoContextWithRepositries();
-        AddAppliactionSerivcesWithInterceptors();
-        AddApplicaitonHostedServices();
+        AddApplicaitonDefault();
 
-        var policies = this.GenerateDefaultRefitPolicies();
-        var authServeiceAddress = IsDevelopment ? "http://localhost:5010" : "adnc.usr.webapi";
-        var maintServiceAddress = IsDevelopment ? "http://localhost:5020" : "adnc.maint.webapi";
-        AddRpcService<IAuthRpcService>(authServeiceAddress, policies);
-        AddRpcService<IMaintRpcService>(maintServiceAddress, policies);
-
+        //rpc-restclient
+        var restPolicies = this.GenerateDefaultRefitPolicies();
+        AddRestClient<IAuthRestClient>(RpcConsts.UsrService, restPolicies);
+        AddRestClient<IUsrRestClient>(RpcConsts.UsrService, restPolicies);
+        AddRestClient<IMaintRestClient>(RpcConsts.MaintService, restPolicies);
+        AddRestClient<IWhseRestClient>(RpcConsts.WhseService, restPolicies);
+        //rpc-grpcclient
+        var gprcPolicies = this.GenerateDefaultGrpcPolicies();
+        AddGrpcClient<AuthGrpc.AuthGrpcClient>(RpcConsts.UsrService, gprcPolicies);
+        AddGrpcClient<UsrGrpc.UsrGrpcClient>(RpcConsts.UsrService, gprcPolicies);
+        AddGrpcClient<MaintGrpc.MaintGrpcClient>(RpcConsts.MaintService, gprcPolicies);
+        AddGrpcClient<WhseGrpc.WhseGrpcClient>(RpcConsts.WhseService, gprcPolicies);
+        //rpc-even
         AddEventBusPublishers();
         AddEventBusSubscribers<CapEventSubscriber>();
     }

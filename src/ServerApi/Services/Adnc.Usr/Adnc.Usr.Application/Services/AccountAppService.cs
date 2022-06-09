@@ -40,10 +40,10 @@ public class AccountAppService : AbstractAppService, IAccountAppService
             x.RoleIds
         }, x => x.Account == input.Account);
 
-        if (user == null)
+        if (user is null)
             return Problem(HttpStatusCode.BadRequest, "用户名或密码错误");
 
-        var httpContext = HttpContextUtility.GetCurrentHttpContext();
+        var httpContext = InfraHelper.Accessor.GetCurrentHttpContext();
         var channelWriter = ChannelHelper<LoginLog>.Instance.Writer;
         var log = new LoginLog
         {
@@ -68,7 +68,7 @@ public class AccountAppService : AbstractAppService, IAccountAppService
         //var logins = await _loginLogRepository.SelectAsync(5, x => new { x.Id, x.Succeed,x.CreateTime }, x => x.UserId == user.Id, x => x.Id, false);
         //var failLoginCount = logins.Count(x => x.Succeed == false);
         var failLoginCount = 2;
-        if (failLoginCount == 5)
+        if (failLoginCount >= 5)
         {
             var problem = Problem(HttpStatusCode.TooManyRequests, "连续登录失败次数超过5次，账号已锁定");
             log.Message = problem.Detail;
@@ -83,7 +83,7 @@ public class AccountAppService : AbstractAppService, IAccountAppService
             return problem;
         }
 
-        if (HashHelper.GetHashedString(HashType.MD5, input.Password, user.Salt) != user.Password)
+        if (InfraHelper.Security.MD5(input.Password + user.Salt) != user.Password)
         {
             var problem = Problem(HttpStatusCode.BadRequest, "用户名或密码错误");
             log.Message = problem.Detail;
@@ -113,7 +113,7 @@ public class AccountAppService : AbstractAppService, IAccountAppService
             RoleIds = user.RoleIds,
             Status = user.Status,
             Name = user.Name,
-            ValidationVersion = HashHelper.GetHashedString(HashType.MD5, user.Account + user.Password)
+            ValidationVersion = InfraHelper.Hash.GetHashedString(HashType.MD5, user.Account + user.Password)
         };
 
         return userValidteInfo;
@@ -128,14 +128,14 @@ public class AccountAppService : AbstractAppService, IAccountAppService
             x.Password,
         }, x => x.Id == id);
 
-        if (user == null)
+        if (user is null)
             return Problem(HttpStatusCode.NotFound, "用户不存在,参数信息不完整");
 
-        var md5OldPwdString = HashHelper.GetHashedString(HashType.MD5, input.OldPassword, user.Salt);
+        var md5OldPwdString = InfraHelper.Security.MD5(input.OldPassword + user.Salt);
         if (!md5OldPwdString.EqualsIgnoreCase(user.Password))
             return Problem(HttpStatusCode.BadRequest, "旧密码输入错误");
 
-        var newPwdString = HashHelper.GetHashedString(HashType.MD5, input.Password, user.Salt);
+        var newPwdString = InfraHelper.Security.MD5(input.Password + user.Salt);
 
         await _userRepository.UpdateAsync(new SysUser { Id = user.Id, Password = newPwdString }, UpdatingProps<SysUser>(x => x.Password));
 

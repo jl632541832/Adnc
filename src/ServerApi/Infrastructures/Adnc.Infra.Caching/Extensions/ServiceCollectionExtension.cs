@@ -5,8 +5,6 @@ using Adnc.Infra.Caching.Interceptor.Castle;
 using Adnc.Infra.Caching.StackExchange;
 using Adnc.Infra.Core.Interceptor;
 using Microsoft.Extensions.Configuration;
-using System;
-using System.Linq;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -20,6 +18,9 @@ public static class ServiceCollectionExtension
 
     public static IServiceCollection AddAdncInfraCaching(this IServiceCollection services, CacheOptions cacheOptions)
     {
+        if (services.HasRegistered(nameof(AddAdncInfraCaching)))
+            return services;
+
         services.AddSingleton(cacheOptions);
         services.AddSingleton<IRedisDatabaseProvider, DefaultDatabaseProvider>();
         services.AddSingleton<ICachingKeyGenerator, DefaultCachingKeyGenerator>();

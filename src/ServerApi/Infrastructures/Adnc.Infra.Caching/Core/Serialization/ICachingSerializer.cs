@@ -1,9 +1,7 @@
-﻿using System;
-
-namespace Adnc.Infra.Caching.Core.Serialization
+﻿namespace Adnc.Infra.Caching.Core.Serialization
 {
     /// <summary>
-    /// Easy caching serializer.
+    /// caching serializer.
     /// </summary>
     public interface ICachingSerializer
     {

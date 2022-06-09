@@ -1,9 +1,4 @@
 ﻿using Adnc.Infra.Caching.Core;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace StackExchange.Redis
 {
@@ -11,7 +6,7 @@ namespace StackExchange.Redis
     {
         #region Distributed Locker
 
-        public static (bool Success, string LockValue) Lock(this IDatabase redisDb, string cacheKey, int timeoutSeconds = 5, bool autoDelay = true)
+        public static (bool Success, string LockValue) Lock(this IDatabase redisDb, string cacheKey, int timeoutSeconds = 5, bool autoDelay = false)
         {
             ArgumentCheck.NotNullOrWhiteSpace(cacheKey, nameof(cacheKey));
             ArgumentCheck.NotLessThanOrEqualZero(timeoutSeconds, nameof(timeoutSeconds));
@@ -36,7 +31,7 @@ namespace StackExchange.Redis
             return (flag, flag ? lockValue : null);
         }
 
-        public static async Task<(bool Success, string LockValue)> LockAsync(this IDatabase redisDb, string cacheKey, int timeoutSeconds = 5, bool autoDelay = true)
+        public static async Task<(bool Success, string LockValue)> LockAsync(this IDatabase redisDb, string cacheKey, int timeoutSeconds = 5, bool autoDelay = false)
         {
             ArgumentCheck.NotNullOrWhiteSpace(cacheKey, nameof(cacheKey));
             ArgumentCheck.NotLessThanOrEqualZero(timeoutSeconds, nameof(timeoutSeconds));

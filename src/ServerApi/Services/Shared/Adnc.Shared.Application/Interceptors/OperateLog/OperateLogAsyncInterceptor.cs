@@ -5,10 +5,10 @@
 /// </summary>
 public sealed class OperateLogAsyncInterceptor : IAsyncInterceptor
 {
-    private readonly IUserContext _userContext;
+    private readonly UserContext _userContext;
     private readonly ILogger<OperateLogAsyncInterceptor> _logger;
 
-    public OperateLogAsyncInterceptor(IUserContext userContext
+    public OperateLogAsyncInterceptor(UserContext userContext
         , ILogger<OperateLogAsyncInterceptor> logger)
     {
         _userContext = userContext;
@@ -140,7 +140,7 @@ public sealed class OperateLogAsyncInterceptor : IAsyncInterceptor
         return result;
     }
 
-    private OperationLog CreateOpsLog(string className, string methodName, string logName, object[] arguments, IUserContext userContext)
+    private OperationLog CreateOpsLog(string className, string methodName, string logName, object[] arguments, UserContext userContext)
     {
         var log = new OperationLog
         {
@@ -167,7 +167,7 @@ public sealed class OperateLogAsyncInterceptor : IAsyncInterceptor
             ////设置消息持久化
             //properties.Persistent = true;
             //_mqProducer.BasicPublish(MqExchanges.Logs, MqRoutingKeys.OpsLog, logInfo, properties);
-            var operationLogWriter = ChannelHelper<OperationLog>.Instance.Writer;
+            var operationLogWriter = Channels.ChannelHelper<OperationLog>.Instance.Writer;
             operationLogWriter.WriteAsync(logInfo).GetAwaiter().GetResult();
         }
         catch (Exception ex)

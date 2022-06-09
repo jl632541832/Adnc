@@ -1,22 +1,27 @@
-﻿using Adnc.Infra.Consul.Consumer;
+﻿using Adnc.Infra.Consul.Discover.GrpcResolver;
+using Adnc.Infra.Consul.Discover.Handler;
 using Adnc.Infra.EfCore.MySQL;
 using Adnc.Infra.Mongo.Configuration;
 using Adnc.Infra.Mongo.Extensions;
 using Adnc.Shared.Application.Channels;
-using Adnc.Shared.RpcServices;
+using Adnc.Shared.Consts.RegistrationCenter;
+using Adnc.Shared.Rpc;
 using DotNetCore.CAP;
+using Grpc.Core;
+using Grpc.Net.Client.Balancer;
+using Grpc.Net.Client.Configuration;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Refit;
 using SkyApm.Diagnostics.CAP;
-using System.Net.Http;
 
 namespace Adnc.Shared.Application.Registrar;
 
 public abstract class AbstractApplicationDependencyRegistrar : IDependencyRegistrar
 {
-    public abstract Assembly ApplicationAssembly { get; }
-    public abstract Assembly ContractsAssembly { get; }
-    public abstract Assembly RepositoryOrDomainAssembly { get; }
+    public abstract Assembly ApplicationLayerAssembly { get; }
+    public abstract Assembly ContractsLayerAssembly { get; }
+    public abstract Assembly RepositoryOrDomainLayerAssembly { get; }
     public string Name => "application";
     public virtual string ASPNETCORE_ENVIRONMENT => Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
     public virtual bool IsDevelopment => ASPNETCORE_ENVIRONMENT.EqualsIgnoreCase("Development");
@@ -45,6 +50,22 @@ public abstract class AbstractApplicationDependencyRegistrar : IDependencyRegist
 
     public abstract void AddAdnc();
 
+    protected virtual void AddApplicaitonDefault()
+    {
+        Services.AddValidatorsFromAssembly(ContractsLayerAssembly, ServiceLifetime.Scoped);
+        Services.AddAdncInfraAutoMapper(ApplicationLayerAssembly);
+        Services.AddAdncInfraYitterIdGenerater(RedisSection);
+        AddApplicationSharedServices();
+        AddConsulServices();
+        AddCachingServices();
+        AddBloomFilterServices();
+        AddDapperRepositories();
+        AddEfCoreContextWithRepositories();
+        AddMongoContextWithRepositries();
+        AddAppliactionSerivcesWithInterceptors();
+        AddApplicaitonHostedServices();
+    }
+
     /// <summary>
     /// 注册Shared.Application通用服务
     /// </summary>
@@ -52,15 +73,13 @@ public abstract class AbstractApplicationDependencyRegistrar : IDependencyRegist
     {
         Services.AddSingleton(typeof(Lazy<>));
         //https://andrewlock.net/how-to-register-a-service-with-multiple-interfaces-for-in-asp-net-core-di/
-        Services.AddScoped<IUserContext,UserContext>();
+        Services.AddScoped<UserContext>();
         Services.AddScoped<OperateLogInterceptor>();
         Services.AddScoped<OperateLogAsyncInterceptor>();
         Services.AddScoped<UowInterceptor>();
         Services.AddScoped<UowAsyncInterceptor>();
         Services.AddSingleton<IBloomFilterFactory, DefaultBloomFilterFactory>();
-        Services.AddSingleton<WorkerNode>();
         Services.AddHostedService<CachingHostedService>();
-        Services.AddHostedService<WorkerNodeHostedService>();
         Services.AddHostedService<ChannelConsumersHostedService>();
         Services.AddHostedService<BloomFilterHostedService>();
     }
@@ -82,7 +101,7 @@ public abstract class AbstractApplicationDependencyRegistrar : IDependencyRegist
         action?.Invoke(Services);
 
         var serviceType = typeof(IEntityInfo);
-        var implType = RepositoryOrDomainAssembly.ExportedTypes.FirstOrDefault(type => type.IsAssignableTo(serviceType) && type.IsNotAbstractClass(true));
+        var implType = RepositoryOrDomainLayerAssembly.ExportedTypes.FirstOrDefault(type => type.IsAssignableTo(serviceType) && type.IsNotAbstractClass(true));
         if (implType is null)
             throw new NullReferenceException(nameof(IEntityInfo));
         else
@@ -90,7 +109,7 @@ public abstract class AbstractApplicationDependencyRegistrar : IDependencyRegist
 
         Services.AddScoped(provider =>
         {
-            var userContext = provider.GetRequiredService<IUserContext>();
+            var userContext = provider.GetRequiredService<UserContext>();
             return new Operater
             {
                 Id = userContext.Id,
@@ -105,6 +124,7 @@ public abstract class AbstractApplicationDependencyRegistrar : IDependencyRegist
         var serverVersion = new MariaDbServerVersion(new Version(10, 5, 4));
         Services.AddDbContext<AdncDbContext>(options =>
         {
+            options.UseLowerCaseNamingConvention();
             options.UseMySql(mysqlConfig.ConnectionString, serverVersion, optionsBuilder =>
             {
                 optionsBuilder.MinBatchSize(4)
@@ -203,69 +223,105 @@ public abstract class AbstractApplicationDependencyRegistrar : IDependencyRegist
                 x.PathMatch = $"/{ServiceInfo.ShortName}/cap";
                 x.UseAuth = false;
             });
-
-            /* CAP目前不需要自动注册，先注释
-            //必须是生产环境才注册cap服务到consul
-            if ((_environment.IsProduction() || _environment.IsStaging()))
-            {
-                x.UseDiscovery(discoverOptions =>
-                {
-                    var consulConfig = _configuration.GetConsulSection().Get<ConsulConfig>();
-                    var consulAdderss = new Uri(consulConfig.ConsulUrl);
-
-                    var hostIps = NetworkInterface
-                                                                    .GetAllNetworkInterfaces()
-                                                                    .Where(network => network.OperationalStatus == OperationalStatus.Up)
-                                                                    .Select(network => network.GetIPProperties())
-                                                                    .OrderByDescending(properties => properties.GatewayAddresses.Count)
-                                                                    .SelectMany(properties => properties.UnicastAddresses)
-                                                                    .Where(address => !IPAddress.IsLoopback(address.Address) && address.Address.AddressFamily == AddressFamily.InterNetwork)
-                                                                    .ToArray();
-
-                    var currenServerAddress = hostIps.First().Address.MapToIPv4().ToString();
-
-                    discoverOptions.DiscoveryServerHostName = consulAdderss.Host;
-                    discoverOptions.DiscoveryServerPort = consulAdderss.Port;
-                    discoverOptions.CurrentNodeHostName = currenServerAddress;
-                    discoverOptions.CurrentNodePort = 80;
-                    discoverOptions.NodeId = DateTime.Now.Ticks.ToString();
-                    discoverOptions.NodeName = _serviceInfo.FullName.Replace("webapi", "cap");
-                    discoverOptions.MatchPath = $"/{_serviceInfo.ShortName}/cap";
-                });
-            }
-            */
         });
     }
 
     /// <summary>
-    /// 注册Rpc服务(跨微服务之间的同步通讯)
+    /// 注册Rest服务(跨微服务之间的同步通讯)
+    /// </summary>
+    /// <typeparam name="TRestClient">Rpc服务接口</typeparam>
+    /// <param name="serviceName">在注册中心注册的服务名称，或者服务的Url</param>
+    /// <param name="policies">Polly策略</param>
+    protected virtual void AddRestClient<TRestClient>(string serviceName, List<IAsyncPolicy<HttpResponseMessage>> policies)
+     where TRestClient : class
+    {
+        var addressNode = RpcAddressInfo.GetAddressNode(serviceName);
+        if (addressNode is null)
+            throw new NullReferenceException(nameof(addressNode));
+
+        var registeredType = Configuration.GetRegisteredType().ToLower();
+
+        //注册RefitClient,设置httpclient生命周期时间，默认也是2分钟。
+        var contentSerializer = new SystemTextJsonContentSerializer(SystemTextJson.GetAdncDefaultOptions());
+        var refitSettings = new RefitSettings(contentSerializer);
+        var clientbuilder = Services.AddRefitClient<TRestClient>(refitSettings)
+                                                    .SetHandlerLifetime(TimeSpan.FromMinutes(2))
+                                                    .AddPolicyHandlerICollection(policies)
+                                                    //.UseHttpClientMetrics()
+                                                    ;
+        switch (registeredType)
+        {
+            case RegisteredTypeConsts.Direct:
+                {
+                    clientbuilder.ConfigureHttpClient(httpClient => httpClient.BaseAddress = new Uri(addressNode.Direct))
+                                        .AddHttpMessageHandler<SimpleDiscoveryDelegatingHandler>();
+                    break;
+                }
+            case RegisteredTypeConsts.ClusterIP:
+                {
+                    clientbuilder.ConfigureHttpClient(httpClient => httpClient.BaseAddress = new Uri(addressNode.CoreDns))
+                                        .AddHttpMessageHandler<SimpleDiscoveryDelegatingHandler>();
+                    break;
+                }
+            case RegisteredTypeConsts.Consul:
+                {
+                    clientbuilder.ConfigureHttpClient(httpClient => httpClient.BaseAddress = new Uri(addressNode.Consul))
+                                        .AddHttpMessageHandler<ConsulDiscoverDelegatingHandler>();
+                    break;
+                }
+        }
+    }
+
+    /// <summary>
+    /// 注册Grpc服务(跨微服务之间的同步通讯)
     /// </summary>
     /// <typeparam name="TRpcService">Rpc服务接口</typeparam>
     /// <param name="serviceName">在注册中心注册的服务名称，或者服务的Url</param>
     /// <param name="policies">Polly策略</param>
-    protected virtual void AddRpcService<TRpcService>(string serviceName, List<IAsyncPolicy<HttpResponseMessage>> policies)
-     where TRpcService : class, IRpcService
+    protected virtual void AddGrpcClient<TGrpcClient>(string serviceName, List<IAsyncPolicy<HttpResponseMessage>> policies)
+     where TGrpcClient : class
     {
-        var prefix = serviceName[..7];
-        bool isConsulAdderss = prefix != "http://" && prefix != "https:/";
-        //如果参数是服务名字，那么需要从consul获取地址
-        var baseAddress = isConsulAdderss ? $"http://{serviceName}" : serviceName;
+        var addressNode = RpcAddressInfo.GetAddressNode(serviceName);
+        if (addressNode is null)
+            throw new NullReferenceException(nameof(addressNode));
 
-        //注册RefitClient,设置httpclient生命周期时间，默认也是2分钟。
-        var refitSettings = new RefitSettings()
+        var registeredType = Configuration.GetRegisteredType().ToLower();
+
+        var switchName = "System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport";
+        var switchResult = AppContext.TryGetSwitch(switchName, out bool isEnabled);
+        if (!switchResult || !isEnabled)
+            AppContext.SetSwitch(switchName, true);
+
+        var baseAddress = string.Empty;
+        switch (registeredType)
         {
-            ContentSerializer = new SystemTextJsonContentSerializer(SystemTextJson.GetAdncDefaultOptions())
-        };
-        var clientbuilder = Services.AddRefitClient<TRpcService>(refitSettings)
-                                                     .SetHandlerLifetime(TimeSpan.FromMinutes(2))
-                                                     .ConfigureHttpClient(httpClient => httpClient.BaseAddress = new Uri(baseAddress));
-        if (isConsulAdderss)
-            clientbuilder.AddHttpMessageHandler<ConsulDiscoverDelegatingHandler>();
-        else
-            clientbuilder.AddHttpMessageHandler<SimpleDiscoveryDelegatingHandler>();
+            case RegisteredTypeConsts.Direct:
+                {
+                    var restBaseAddress = new Uri(addressNode.Direct);
+                    baseAddress = $"{restBaseAddress.Scheme}://{restBaseAddress.Host}:{restBaseAddress.Port + 1}";
+                    break;
+                }
+            case RegisteredTypeConsts.ClusterIP:
+                {
+                    baseAddress = addressNode.CoreDns.Replace("http://", "dns://").Replace("https://", "dns://");
+                    break;
+                }
+            case RegisteredTypeConsts.Consul:
+                {
+                    baseAddress = addressNode.Consul.Replace("http://", "consul://").Replace("https://", "consul://");
+                    Services.TryAddSingleton<ResolverFactory, ConsulGrpcResolverFactory>();
+                    break;
+                }
+        }
 
-        //添加polly相关策略
-        policies?.ForEach(policy => clientbuilder.AddPolicyHandler(policy));
+        Services.AddGrpcClient<TGrpcClient>(options => options.Address = new Uri(baseAddress))
+                     .ConfigureChannel(options => 
+                     {
+                         options.Credentials = ChannelCredentials.Insecure;
+                         options.ServiceConfig = new ServiceConfig { LoadBalancingConfigs = { new RoundRobinConfig() } };
+                     })
+                     .AddHttpMessageHandler<SimpleDiscoveryDelegatingHandler>()
+                     .AddPolicyHandlerICollection(policies);
     }
 
     /// <summary>
@@ -276,14 +332,14 @@ public abstract class AbstractApplicationDependencyRegistrar : IDependencyRegist
         action?.Invoke(Services);
 
         var appServiceType = typeof(IAppService);
-        var serviceTypes = ContractsAssembly.GetExportedTypes().Where(type => type.IsInterface && type.IsAssignableTo(appServiceType)).ToList();
+        var serviceTypes = ContractsLayerAssembly.GetExportedTypes().Where(type => type.IsInterface && type.IsAssignableTo(appServiceType)).ToList();
         serviceTypes.Remove(appServiceType);
         var lifetime = ServiceLifetime.Scoped;
         if (serviceTypes.IsNullOrEmpty())
             return;
         serviceTypes.ForEach(serviceType =>
         {
-            var implType = ApplicationAssembly.ExportedTypes.FirstOrDefault(type => type.IsAssignableTo(serviceType) && type.IsNotAbstractClass(true));
+            var implType = ApplicationLayerAssembly.ExportedTypes.FirstOrDefault(type => type.IsAssignableTo(serviceType) && type.IsNotAbstractClass(true));
             if (implType is null)
                 return;
 
@@ -310,7 +366,7 @@ public abstract class AbstractApplicationDependencyRegistrar : IDependencyRegist
         action?.Invoke(Services);
 
         var serviceType = typeof(TDomainService);
-        var implTypes = RepositoryOrDomainAssembly.ExportedTypes.Where(type => type.IsAssignableTo(serviceType) && type.IsNotAbstractClass(true)).ToList();
+        var implTypes = RepositoryOrDomainLayerAssembly.ExportedTypes.Where(type => type.IsAssignableTo(serviceType) && type.IsNotAbstractClass(true)).ToList();
         implTypes.ForEach(implType =>
         {
             Services.AddScoped(implType, implType);
@@ -323,7 +379,7 @@ public abstract class AbstractApplicationDependencyRegistrar : IDependencyRegist
     protected virtual void AddApplicaitonHostedServices()
     {
         var serviceType = typeof(IHostedService);
-        var implTypes = ApplicationAssembly.ExportedTypes.Where(type => type.IsAssignableTo(serviceType) && type.IsNotAbstractClass(true)).ToList();
+        var implTypes = ApplicationLayerAssembly.ExportedTypes.Where(type => type.IsAssignableTo(serviceType) && type.IsNotAbstractClass(true)).ToList();
         implTypes.ForEach(implType =>
         {
             Services.AddSingleton(serviceType, implType);
@@ -340,7 +396,7 @@ public abstract class AbstractApplicationDependencyRegistrar : IDependencyRegist
 
         Services.AddAdncInfraCaching(RedisSection);
         var serviceType = typeof(ICachePreheatable);
-        var implTypes = ApplicationAssembly.ExportedTypes.Where(type => type.IsAssignableTo(serviceType) && type.IsNotAbstractClass(true)).ToList();
+        var implTypes = ApplicationLayerAssembly.ExportedTypes.Where(type => type.IsAssignableTo(serviceType) && type.IsNotAbstractClass(true)).ToList();
         if (implTypes.IsNotNullOrEmpty())
         {
             implTypes.ForEach(implType =>
@@ -360,7 +416,7 @@ public abstract class AbstractApplicationDependencyRegistrar : IDependencyRegist
         action?.Invoke(Services);
 
         var serviceType = typeof(IBloomFilter);
-        var implTypes = ApplicationAssembly.ExportedTypes.Where(type => type.IsAssignableTo(serviceType) && type.IsNotAbstractClass(true)).ToList();
+        var implTypes = ApplicationLayerAssembly.ExportedTypes.Where(type => type.IsAssignableTo(serviceType) && type.IsNotAbstractClass(true)).ToList();
         if (implTypes.IsNotNullOrEmpty())
             implTypes.ForEach(implType => Services.AddSingleton(serviceType, implType));
     }

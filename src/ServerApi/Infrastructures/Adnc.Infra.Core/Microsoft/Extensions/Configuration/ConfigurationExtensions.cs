@@ -3,6 +3,14 @@
 public static partial class ConfigurationExtensions
 {
     /// <summary>
+    /// 服务注册类型
+    /// </summary>
+    /// <param name="serviceInfo"></param>
+    /// <param name="configuration"></param>
+    /// <returns></returns>
+    public static string GetRegisteredType(this IConfiguration configuration) => configuration.GetValue("RegisteredType", "direct");
+
+    /// <summary>
     /// 获取SSOAuthentication是否开启
     /// </summary>
     /// <param name="serviceInfo"></param>
@@ -72,4 +80,11 @@ public static partial class ConfigurationExtensions
     /// <param name="configuration"></param>
     /// <returns></returns>
     public static IConfigurationSection GetHangfireSection(this IConfiguration configuration) => configuration.GetSection("Hangfire");
+
+    /// <summary>
+    /// 获取Kestrel配置
+    /// </summary>
+    /// <param name="configuration"></param>
+    /// <returns></returns>
+    public static IConfigurationSection GetKestrelSection(this IConfiguration configuration) => configuration.GetSection("Kestrel");
 }

@@ -1,17 +1,14 @@
-﻿using Adnc.Maint.Application.AutoMapper;
-using Adnc.Shared.Application.Registrar;
-using FluentValidation;
-using System.Reflection;
+﻿using Adnc.Shared.Application.Registrar;
 
 namespace Adnc.Maint.Application.Registrar;
 
 public sealed class MaintApplicationDependencyRegistrar : AbstractApplicationDependencyRegistrar
 {
-    public override Assembly ApplicationAssembly => Assembly.GetExecutingAssembly();
+    public override Assembly ApplicationLayerAssembly => Assembly.GetExecutingAssembly();
 
-    public override Assembly ContractsAssembly => typeof(IDictAppService).Assembly;
+    public override Assembly ContractsLayerAssembly => typeof(IDictAppService).Assembly;
 
-    public override Assembly RepositoryOrDomainAssembly => typeof(EntityInfo).Assembly;
+    public override Assembly RepositoryOrDomainLayerAssembly => typeof(EntityInfo).Assembly;
 
     public MaintApplicationDependencyRegistrar(IServiceCollection services) : base(services)
     {
@@ -19,21 +16,10 @@ public sealed class MaintApplicationDependencyRegistrar : AbstractApplicationDep
 
     public override void AddAdnc()
     {
-        Services.AddValidatorsFromAssembly(ContractsAssembly, ServiceLifetime.Scoped);
-        Services.AddAdncInfraAutoMapper(typeof(MaintProfile));
-        AddApplicationSharedServices();
-        AddConsulServices();
-        AddCachingServices();
-        AddBloomFilterServices();
-        AddDapperRepositories();
-        AddEfCoreContextWithRepositories();
-        AddMongoContextWithRepositries();
-        AddAppliactionSerivcesWithInterceptors();
-        AddApplicaitonHostedServices();
-
-        var policies = this.GenerateDefaultRefitPolicies();
-        var authServeiceAddress = IsDevelopment ? "http://localhost:5010" : "adnc.usr.webapi";
-        AddRpcService<IAuthRpcService>(authServeiceAddress, policies);
-        AddRpcService<IUsrRpcService>(authServeiceAddress, policies);
+        AddApplicaitonDefault();
+        //rpc-rest
+        var restPolicies = this.GenerateDefaultRefitPolicies();
+        AddRestClient<IAuthRestClient>(RpcConsts.UsrService, restPolicies);
+        AddRestClient<IUsrRestClient>(RpcConsts.UsrService, restPolicies);
     }
 }
