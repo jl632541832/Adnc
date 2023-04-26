@@ -1,11 +1,44 @@
 {
   //direct
   "GlobalConfiguration": {
-    "BaseUrl": "http://localhost:5002"
+    "RequestIdKey": "RequestId",
+    //LeastConnection,RoundRobin,NoLoadBalance,CookieStickySessions
+    "LoadBalancerOptions": {
+      "Type": "NoLoadBalance"
+    },
+    "UpstreamHeaderTransform": {
+      "From": "gateway",
+      "X-Forwarded-For": "{RemoteIpAddress}"
+    },
+    "DownstreamHeaderTransform": {
+      "X-Forwarded-For": "{RemoteIpAddress}"
+    },
+    "RateLimitOptions": {
+      //ç™½åå•ï¼Œä¸å—é™æµæ§åˆ¶
+      "ClientWhitelist": [],
+      //æ˜¯å¦å¼€å¯é™æµ
+      "EnableRateLimiting": true,
+      //é™æµçš„æ—¶é—´ï¼Œå¦‚ï¼š1s, 5m, 1h, 1d
+      "Period": "1s",
+      //åœ¨é™æµæ§åˆ¶æ—¶é—´æ®µå†…æœ€å¤§è®¿é—®æ•°
+      "Limit": 3000,
+      //å¤šå°‘ç§’åå®¢æˆ·ç«¯å¯ä»¥é‡è¯•
+      "PeriodTimespan": 10
+    },
+    "QoSOptions": {
+      //æ–­è·¯å™¨æ¬¡æ•°ï¼ˆå‘ç”Ÿå‡ æ¬¡è¯·æ±‚å¼‚å¸¸åè¿›è¡Œç†”æ–­ï¼‰
+      "ExceptionsAllowedBeforeBreaking": 10,
+      //æ–­è·¯å™¨ç†”æ–­æ—¶é—´ï¼ˆæ¯«ç§’ï¼‰
+      "DurationOfBreak": 30000,
+      //è¶…æ—¶æ—¶é—´
+      "TimeoutValue": 5000
+    }
   },
   "Routes": [
+    //auth service
     {
-      "DownstreamPathTemplate": "/usr{everything}",
+      "ServiceName": "adnc-demo-usr-api",
+      "DownstreamPathTemplate": "/auth/api{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -13,23 +46,39 @@
           "Port": 50010
         }
       ],
-      "UpstreamPathTemplate": "/usr{everything}",
+      "UpstreamPathTemplate": "/auth/api{everything}",
       "UpstreamHttpMethod": [
         "Get",
         "Put",
         "Post",
-        "Delete"
-      ],
-      "LoadBalancerOptions": {
-        //LeastConnection ¨C ½«ÇëÇó·¢Íù×î¿ÕÏĞµÄÄÇ¸ö·şÎñÆ÷
-        //RoundRobin ¨C ÂÖÁ÷·¢ËÍ
-        //NoLoadBalance ¨C ×ÜÊÇ·¢ÍùµÚÒ»¸öÇëÇó»òÕßÊÇ·şÎñ·¢ÏÖ
-        //CookieStickySessions -ĞÔ»á»°ÀàĞÍµÄ¸ºÔØÆ½ºâ
-        "Type": "RoundRobin"
-      }
+        "Delete",
+        "Options"
+      ]
     },
+    //usr services
     {
-      "DownstreamPathTemplate": "/maint{everything}",
+      "ServiceName": "adnc-demo-usr-api",
+      "DownstreamPathTemplate": "/usr/api{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 50010
+        }
+      ],
+      "UpstreamPathTemplate": "/usr/api{everything}",
+      "UpstreamHttpMethod": [
+        "Get",
+        "Put",
+        "Post",
+        "Delete",
+        "Options"
+      ]
+    },
+    //maint services
+    {
+      "ServiceName": "adnc-demo-maint-api",
+      "DownstreamPathTemplate": "/maint/api{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -37,19 +86,19 @@
           "Port": 50020
         }
       ],
-      "UpstreamPathTemplate": "/maint{everything}",
+      "UpstreamPathTemplate": "/maint/api{everything}",
       "UpstreamHttpMethod": [
         "Get",
         "Put",
         "Post",
-        "Delete"
-      ],
-      "LoadBalancerOptions": {
-        "Type": "RoundRobin"
-      }
+        "Delete",
+        "Options"
+      ]
     },
+    //cust services
     {
-      "DownstreamPathTemplate": "/cus{everything}",
+      "ServiceName": "adnc-demo-cust-api",
+      "DownstreamPathTemplate": "/cust/api{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -57,16 +106,14 @@
           "Port": 50030
         }
       ],
-      "UpstreamPathTemplate": "/cus{everything}",
+      "UpstreamPathTemplate": "/cust/api{everything}",
       "UpstreamHttpMethod": [
         "Get",
         "Put",
         "Post",
-        "Delete"
-      ],
-      "LoadBalancerOptions": {
-        "Type": "RoundRobin"
-      }
+        "Delete",
+        "Options"
+      ]
     }
   ]
 }

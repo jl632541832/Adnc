@@ -1,11 +1,11 @@
-﻿namespace Adnc.Infra.Mongo.Configuration
+﻿namespace Adnc.Infra.Repository.Mongo.Configuration
 {
     public class MongoRepositoryOptions
     {
         /// <summary>
         /// Gets or sets the MongoDB connection string.
         /// </summary>
-        public string ConnectionString { get; set; }
+        public string ConnectionString { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the collection naming convention.

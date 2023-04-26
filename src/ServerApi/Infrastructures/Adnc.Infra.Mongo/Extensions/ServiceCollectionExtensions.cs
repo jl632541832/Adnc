@@ -1,9 +1,9 @@
 ﻿using Adnc.Infra.IRepositories;
-using Adnc.Infra.Mongo.Configuration;
-using Adnc.Infra.Mongo.Interfaces;
+using Adnc.Infra.Repository.Mongo.Configuration;
+using Adnc.Infra.Repository.Mongo.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Adnc.Infra.Mongo.Extensions
+namespace Adnc.Infra.Repository.Mongo.Extensions
 {
     /// <summary>
     /// Extensions for <see cref="IServiceCollection"/> to add easy MongoDB wiring.
@@ -23,7 +23,7 @@ namespace Adnc.Infra.Mongo.Extensions
             where TContext : IMongoContext
         {
             if (services.HasRegistered(nameof(AddAdncInfraMongo)))
-                return default;
+                return new MongoConfigurationBuilder(services);
 
             services.Configure(configurator);
             services.AddSingleton(typeof(IMongoContext), typeof(TContext));

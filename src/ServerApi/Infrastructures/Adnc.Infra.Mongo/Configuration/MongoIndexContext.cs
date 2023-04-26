@@ -2,13 +2,12 @@
 using MongoDB.Driver;
 using System.Collections;
 
-namespace Adnc.Infra.Mongo.Configuration
+namespace Adnc.Infra.Repository.Mongo.Configuration
 {
     /// <summary>
     /// A collection of mongo indexes.
     /// </summary>
     /// <typeparam name="TEntity">The type of the entity.</typeparam>
-    /// <seealso cref="System.Collections.Generic.ICollection{MongoDB.Driver.CreateIndexModel{TEntity}}" />
     public sealed class MongoIndexContext<TEntity> : ICollection<CreateIndexModel<TEntity>>
         where TEntity : MongoEntity
     {

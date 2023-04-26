@@ -1,12 +1,12 @@
-﻿using Adnc.Infra.Mongo.Entities;
-using Adnc.Infra.Mongo.Extensions;
-using Adnc.Infra.Mongo.Interfaces;
+﻿using Adnc.Infra.Repository.Mongo.Entities;
+using Adnc.Infra.Repository.Mongo.Extensions;
+using Adnc.Infra.Repository.Mongo.Interfaces;
 using MongoDB.Driver;
 
-namespace Adnc.Infra.Mongo
+namespace Adnc.Infra.Repository.Mongo
 {
     /// <summary>
-    /// A MongoDB based repository of <see cref="TEntity"/> that supports soft deletion.
+    /// A MongoDB based repository of <see cref="T:TEntity"/> that supports soft deletion.
     /// Entities that implement soft deletion should probably have an index defined on the <see cref="SoftDeletableMongoEntity.DateDeleted"/> field.
     /// </summary>
     /// <typeparam name="TEntity">The type of the entity.</typeparam>

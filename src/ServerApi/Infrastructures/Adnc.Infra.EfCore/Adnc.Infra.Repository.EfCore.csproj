@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<Import Project="..\..\common.props" />
+	<Import Project="..\..\version_infra.props" />
+	<Import Project="..\..\nuget.props" />
+	<PropertyGroup>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<Description>该库是`Adnc.Infra.Repository`相关接口EfCore的实现，提供数据库CRUD操作,支持分布式事务。</Description>
+		<PackageTags>adnc,repository,efcore</PackageTags>
+	</PropertyGroup>
+	<ItemGroup>
+	  <Compile Remove="Extensions\DbContextExtension.cs" />
+	  <Compile Remove="Extensions\MutableEntityTypeExtension.cs" />
+	  <Compile Remove="Internal\EFCoreUtil.cs" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Z.EntityFramework.Plus.EFCore" Version="$(Z_EntityFramework_Plus_EFCore_Version)" />
+	</ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\Adnc.Infra.Core\Adnc.Infra.Core.csproj" />
+	  <ProjectReference Include="..\Adnc.Infra.Repository\Adnc.Infra.Repository.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="Extensions\" />
+	</ItemGroup>
+</Project>

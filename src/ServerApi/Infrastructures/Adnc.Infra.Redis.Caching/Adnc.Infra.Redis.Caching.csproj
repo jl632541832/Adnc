@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<Import Project="..\..\common.props" />
+	<Import Project="..\..\version_infra.props" />
+	<Import Project="..\..\nuget.props" />	
+	<PropertyGroup>
+		<Description>该工库是在`Adnc.Infra.Redis`基础上的进一步封装，负责缓存管理，除常用操作外还解决了缓存穿透，击穿，雪崩等问题。</Description>
+		<PackageTags>adnc,redis,distributed cache</PackageTags>
+	</PropertyGroup>
+	<ItemGroup>
+		<Compile Remove="Core\Interceptor\CachingPutAttribute.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Polly" Version="$(Polly_Version)" />
+		<PackageReference Include="Castle.Core.AsyncInterceptor" Version="$(Castle_Core_AsyncInterceptor_Version)" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\Adnc.Infra.Core\Adnc.Infra.Core.csproj" />
+	  <ProjectReference Include="..\Adnc.Infra.Redis\Adnc.Infra.Redis.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Core\" />
+	</ItemGroup>
+</Project>

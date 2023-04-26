@@ -1,53 +1,72 @@
+using Adnc.Gateway.Ocelot.Identity;
+using Adnc.Infra.Core.Configuration;
+using Microsoft.AspNetCore.Cors.Infrastructure;
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 using Ocelot.Provider.Consul;
+using Ocelot.Provider.Polly;
 
 namespace Adnc.Gateway.Ocelot;
 
 public class Startup
 {
+    private readonly string _corsPolicyName = "default";
+
     public IConfiguration Configuration { get; }
 
-    public Startup(IConfiguration configuration)
-    {
-        Configuration = configuration;
-    }
+    public Startup(IConfiguration configuration) => Configuration = configuration;
 
     public void ConfigureServices(IServiceCollection services)
     {
-        services.Configure<ThreadPoolSettings>(Configuration.GetThreadPoolSettingsSection());
+        var authenticationProviderKey = "mgmt";
+        var threadPoolConfig = Configuration.GetSection("ThreadPoolSettings");
 
-        services.AddCors(options =>
-        {
-            options.AddPolicy("default", policy =>
+        services
+            .Configure<ThreadPoolSettings>(threadPoolConfig)
+            .AddAuthentication()
+            .AddJwtBearer(authenticationProviderKey, options =>
             {
-                var corsHosts = Configuration.GetValue<string>("CorsHosts");
-                var corsHostsArray = corsHosts.Split(',');
-                policy.WithOrigins(corsHostsArray)
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials();
+                var bearerConfig = Configuration.GetSection("JWT").Get<JWTOptions>();
+                options.TokenValidationParameters = JwtSecurityTokenHandlerExtension.GenarateTokenValidationParameters(bearerConfig);
             });
-        });
 
-        //不使用consul,对应ocelot.direct.json
-        //services.AddOcelot();
+        var corsHosts = Configuration.GetValue("CorsHosts", string.Empty);
+        Action<CorsPolicyBuilder> corsPolicyAction = (corsPolicy) => corsPolicy.AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+        if (corsHosts == "*")
+            corsPolicyAction += (corsPolicy) => corsPolicy.SetIsOriginAllowed(_ => true);
+        else
+            corsPolicyAction += (corsPolicy) => corsPolicy.WithOrigins(corsHosts.Split(','));
 
-        //使用consul,对应ocelot.consul.json
-        services.AddOcelot().AddConsul();
+        services
+            .AddCors(option => option.AddPolicy(_corsPolicyName, corsPolicyAction))
+            .AddHttpLogging(logging =>
+            {
+                logging.LoggingFields = Microsoft.AspNetCore.HttpLogging.HttpLoggingFields.All;
+                logging.RequestBodyLogLimit = 4096;
+                logging.ResponseBodyLogLimit = 4096;
+            })
+            .AddOcelot(Configuration)
+            .AddConsul()
+            .AddPolly();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
-        app.UseCors("default");
-        app.UseRouting();
-        app.UseEndpoints(endpoints =>
-        {
-            endpoints.MapGet("/", async context =>
+        app
+            .UseStaticFiles()
+            .UseCors(_corsPolicyName)
+            //.UseHttpLogging()
+            .UseRouting()
+            .UseEndpoints(endpoints =>
             {
-                await context.Response.WriteAsync($"Hello Ocelot,{env.EnvironmentName}!");
-            });
-        });
-        app.UseOcelot().Wait();
+                endpoints.MapGet("/", async context =>
+                {
+                    var content = app.GetDefaultPageContent();
+                    context.Response.Headers.Add("Content-Type", "text/html");
+                    await context.Response.WriteAsync(content);
+                });
+            })
+            .UseOcelot()
+            .Wait();
     }
 }
