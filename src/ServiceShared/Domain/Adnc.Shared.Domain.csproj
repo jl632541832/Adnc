@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<Description>该库是提供所有Domain层的公共实现。</Description>
+		<PackageTags>Adnc.Shared.Domain</PackageTags>
+	</PropertyGroup>	
+	<ItemGroup>
+    <ProjectReference Include="..\..\Infrastructures\EventBus\Adnc.Infra.EventBus.csproj" />
+    <ProjectReference Include="..\..\Infrastructures\Repository\Adnc.Infra.Repository.csproj" />
+    <ProjectReference Include="..\..\Infrastructures\Repository.EfCore\Adnc.Infra.Repository.EfCore.csproj" />
+		<ProjectReference Include="..\Repository\Adnc.Shared.Repository.csproj" />
+	</ItemGroup>
+</Project>

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<Description>该层定义了仓储层基类。</Description>
+		<PackageTags>Adnc.Shared.Repository</PackageTags>
+	</PropertyGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\..\Infrastructures\Repository\Adnc.Infra.Repository.csproj" />
+	</ItemGroup>
+</Project>

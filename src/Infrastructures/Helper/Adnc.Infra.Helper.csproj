@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<Description>该库提供一些通用帮助类，如HashHelper,SecurityHelper等等。</Description>
+		<PackageTags>adnc,helper</PackageTags>
+	</PropertyGroup>
+	<ItemGroup>
+	  <Compile Remove="Internal\IdGenerater\**" />
+	  <EmbeddedResource Remove="Internal\IdGenerater\**" />
+	  <None Remove="Internal\IdGenerater\**" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Http" Version="$(Microsoft_AspNetCore_Http_Version)" />
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Core\Adnc.Infra.Core.csproj" />
+	</ItemGroup>
+</Project>

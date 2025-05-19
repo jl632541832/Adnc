@@ -17,17 +17,15 @@
 ###### <div align="center">代码改变世界，开源推动社区</div>
 
 ## 概述
-### 什么是微服务？
-
-微服务是一种分布式架构模式，通过将应用程序拆分成一组小型、松耦合的服务，可以提高应用程序的可伸缩性、可靠性和灵活性。
-
 ### ADNC是什么？
 
-`ADNC` 是一个基于 `.NET` 平台的分布式/微服务开源框架，采用现代化的架构设计和最佳实践，同时也适用于单体架构系统的开发。它提供了一系列的工具和库，帮助开发人员快速构建和部署微服务应用程序，包括服务注册/发现、配置中心、链路跟踪、负载均衡、熔断、容错、分布式事务、分布式缓存、消息队列、`RPC`调用(`http`/`grpc`)、认证授权、读写分离、日志记录等，同时也提供了完善的文档和示例代码，方便开发人员使用和学习。如果您正在考虑使用微服务架构开发应用程序，`ADNC`  框架是一个值得尝试的开源框架。
+`ADNC` 是一个基于 `.NET` 平台的分布式/微服务开源框架，采用现代化的架构设计和最佳实践，同时也适用于单体架构系统的开发。它提供了一系列的工具和库，帮助开发人员快速构建和部署微服务应用程序，包括服务注册/发现、配置中心、链路跟踪、负载均衡、熔断、容错、分布式事务、分布式缓存、消息队列、`RPC`调用(`http`/`grpc`)、认证授权、读写分离、日志记录等，同时也提供了完善的文档和示例代码，方便开发人员使用和学习。如果您正在考虑使用分布式/微服务或单体架构开发应用程序，`ADNC`  框架是一个值得尝试的开源框架。
+
+> 微服务是一种分布式架构模式，通过将应用程序拆分成一组小型、松耦合的服务，可以提高应用程序的可伸缩性、可靠性和灵活性。
 
 ### ADNC有什么优点?
 
-- 灵活性：框架采用现代化的架构设计，支持经典三层和`DDD`架构开发模式，同时也适用于单体架构系统的开发。
+- 灵活性：框架采用现代化的架构设计，支持经典三层和`DDD`架构开发模式。
 - 易用性：框架提供了完善的文档和示例代码，同时也集成了一系列主流的微服务技术栈，使用起来比较容易上手。
 - 高可靠性：框架采用容器化部署、负载均衡、服务发现等技术，可以提高应用程序的可靠性和可伸缩性。
 - 开放性：框架是一个开源项目，采用 `MIT` 许可证发布，用户可以自由地使用、修改和分享该框架的源代码。
@@ -43,28 +41,24 @@ adnc
 │   └── workflows CICD脚本目录(github-action)
 ├── doc 技术文档目录
 ├── src 源代码目录
-│   ├── ServerApi 后端代码目录
-│   │   ├── Infrastructures 基础架构层代码目录
-│   │   ├── ServiceShared 服务通用层代码目录
-│   │   ├── Gateways ocelot网关代码目录
-│   │   └── Demo 示例代码目录
-│   └── ClientApp 前端代码目录
+│   ├── Infrastructures 基础架构层代码目录
+│   ├── ServiceShared 服务通用层代码目录
+│   ├── Gateways ocelot网关代码目录
+│   └── Demo 示例代码目录
 ├── test 测试相关目录
 ├── .gitignore
 ├── README.MD
 └── LICENSE
 ```
 ### 重要文件
-| 路径                                           | 描述                               |
-| ---------------------------------------------- | ---------------------------------- |
-| `src/ServerApi/Adnc.sln`                       | 该解决方案包含`adnc`所有工程       |
-| `src/ServerApi/Infrastructures/Adnc.Infra.sln` | 该解决方案仅包含基础架构层相关工程 |
-| `src/ServerApi/ServiceShared/Adnc.Shared.sln`  | 该解决方案仅包含服务通用层相关工程 |
-| `src/ServerApi/Demo/Adnc.Demo.sln`             | 该解决方案仅包含`demo`相关工程     |
-| `scr/ServerApi/common.props`                   | 工程文件`*.csproj`公用配置         |
-| `scr/ServerApi/version_infra.props`            | 基础架构层版本号                   |
-| `scr/ServerApi/version_shared.props`           | 服务通用层版本号                   |
-| `scr/ServerApi/nuget.props`                    | `Nuget`发布信息配置                |
+| 路径                                 | 描述                               |
+| -------------------------------------| ---------------------------------- |
+| `src/Adnc.sln`                       | 该解决方案包含`adnc`所有工程       |
+| `src/Infrastructures/Adnc.Infra.sln` | 该解决方案仅包含基础架构层相关工程 |
+| `src/ServiceShared/Adnc.Shared.sln`  | 该解决方案仅包含服务通用层相关工程 |
+| `src/Demo/Adnc.Demo.sln`             | 该解决方案仅包含`demo`相关工程     |
+| `Directory.Build.props`                   | 工程文件`*.csproj`公用配置  |
+
 ### 总体架构图
 
 <img src="https://aspdotnetcore.net/wp-content/uploads/2023/04/adnc_framework-e1682145003197.png" alt="adnc_framework"/>
@@ -97,7 +91,6 @@ adnc
 | <a target="_blank" href="https://github.com/castleproject/Core">Castle DynamicProxy</a> | 动态代理，AOP开源实现组件                                    |
 | <a target="_blank" href="https://github.com/PomeloFoundation/Pomelo.EntityFrameworkCore.MySql">Pomelo.EntityFrameworkCore.MySql</a> | EFCore ORM组件                                               |
 | <a target="_blank" href="https://github.com/StackExchange/Dapper">Dapper</a> | 轻量级ORM组件                                                |
-| <a target="_blank" href="https://entityframework-plus.net">Z.EntityFramework.Plus.EFCore</a> | 第三方高性能的EfCore组件                                     |
 | <a target="_blank" href="https://github.com/NLog/NLog">NLog</a><br />Nlog.Mongdb<br />Nlog.Loki | 日志记录组件                                                 |
 | <a target="_blank" href="https://github.com/AutoMapper/AutoMapper">AutoMapper</a> | 模型映射组件                                                 |
 | <a target="_blank" href="https://github.com/domaindrivendev/Swashbuckle.AspNetCore">Swashbuckle.AspNetCore</a> | APIs文档生成工具(swagger)                                    |
@@ -114,6 +107,10 @@ adnc
 #### 如何快速跑起来
 - 详细介绍如何使用docker安装redis、mysql、rabbitmq、mongodb，以及如何在本地配置ClientApp、ServerApi。<br/>
 [请点击链接，查看详细介绍](https://aspdotnetcore.net/docs/quickstart/)
+
+#### 配置文件详解
+- 详细介绍各个配置节点。<br/>
+[请点击链接，查看详细介绍](https://aspdotnetcore.net/docs/appsettings/)
 
 #### 如何手动部署到容器
 - 详细介绍如何使用docker安装配置consul集群、Skywalking系列组件、相关项目的dockerfile文件编写与配置以及如何将多个服务部署到服务器。<br/>
@@ -166,6 +163,10 @@ adnc
 #### 如何配置健康检测
 - 文档尚未完成
 
+## 数据库脚本
+
+- [adnc/doc/dbsql at develop · AlphaYu/adnc](https://github.com/AlphaYu/adnc/tree/develop/doc/dbsql)
+
 ## Demo介绍
 
 ##### :white_check_mark: Shared 
@@ -174,24 +175,24 @@ adnc
 
 - `protos` grpc定义文件
 - `resources` 公用的静态文件与配置文件
-- `Adnc.Demo.Shared.Const` 常量文件
-- `Adnc.Demo.Shared.Rpc.Event` 事件文件
-- `Adnc.Demo.Shared.Rpc.Grpc` gprc客户端
-- `Adnc.Demo.Shared.Rpc.Http` http客户端
+- `Adnc.Demo.Const` 常量文件
+- `Adnc.Demo.Remote.Event` 事件文件
+- `Adnc.Demo.Remote.Grpc` gprc客户端
+- `Adnc.Demo.Remote.Http` http客户端
 
-##### :white_check_mark: Adnc.Demo.Usr
+##### :white_check_mark: Adnc.Demo.Admin
 
-> 经典三层开发模式，剥离了应用服务协议定义文件到`Adnc.Demo.Usr.Application.Contracts`层
+> 经典三层开发模式，剥离了应用服务协议定义文件到`Adnc.Demo.Admin.Application.Contracts`层
 
-用户中心服务是系统支撑服务，实现了用户管理、角色管理、权限管理、菜单管理、组织架构管理。
+系统管理服务是系统支撑服务，实现了用户管理、角色管理、权限管理、菜单管理、组织架构、字典管理、系统配置管理。
 
 ##### :white_check_mark: Adnc.Demo.Maint
 
 > 经典三层开发模式，应用服务实现与协议定义都在`Adnc.Demo.Maint.Application`层
 
-运维中心服务是系统支撑服务，实现了登录日志、审计日志、异常日志、字典管理、配置参数管理。
+运维中心服务是系统支撑服务，实现了登录日志、审计日志、异常日志。
 
-##### :white_check_mark: Adnc.Demo.Cus
+##### :white_check_mark: Adnc.Demo.Cust
 
 > 经典三层开发模式，控制器、应用服务实现与协议定义、仓储都在同一个工程，这种结构适合细粒度服务拆分模式。
 
@@ -222,8 +223,7 @@ adnc
 
 ### 项目地址
 
-- [adnc-vue2: ADNC's Vue2 front-end](https://github.com/alphayu/adnc-vue2)
-- [adnc-vue3: ADNC's Vue3 front-end](https://github.com/alphayu/adnc-vue3)
+- [adnc-vue3: ADNC's Vue3 front-end](https://github.com/alphayu/adnc-vue-elementplus)
 
 ### 界面截图
 
@@ -236,7 +236,7 @@ adnc
 - [https://aspdotnetcore.net](https://aspdotnetcore.net)
 
 ### 演示地址
-- [http://adnc.aspdotnetcore.net](http://adnc.aspdotnetcore.net)
+- [http://adnc.aspdotnetcore.net](http://62.234.187.128/)
 ### 问题交流
 - QQ群号：780634162
 

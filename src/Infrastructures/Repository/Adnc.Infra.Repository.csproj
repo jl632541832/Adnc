@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<Description>该工程定义了Entity对象的基类、UnitOfWork接口、仓储接口。</Description>
+		<PackageTags>adnc,repository</PackageTags>
+	</PropertyGroup>
+	<ItemGroup>
+    <PackageReference Include="Castle.Core.AsyncInterceptor" Version="$(Castle_Core_AsyncInterceptor_Version)" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="$(Microsoft_EntityFrameworkCore_Relational_Version)" />
+  </ItemGroup>
+</Project>

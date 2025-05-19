@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<Description>所有服务都需要依赖该工程</Description>
+		<PackageTags>adnc,adnc.shared</PackageTags>
+	</PropertyGroup>
+</Project>

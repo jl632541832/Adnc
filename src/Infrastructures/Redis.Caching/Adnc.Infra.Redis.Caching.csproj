@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<Description>该工库是在`Adnc.Infra.Redis`基础上的进一步封装，负责缓存管理，除常用操作外还解决了缓存穿透，击穿，雪崩等问题。</Description>
+		<PackageTags>adnc,redis,distributed cache</PackageTags>
+	</PropertyGroup>
+	<ItemGroup>
+		<Compile Remove="Core\Interceptor\CachingPutAttribute.cs" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Polly" Version="$(Polly_Version)" />
+		<PackageReference Include="Castle.Core.AsyncInterceptor" Version="$(Castle_Core_AsyncInterceptor_Version)" />
+    <PackageReference Include="SkyAPM.Core" Version="$(SkyAPM_Agent_AspNetCore_Version)" />
+    <PackageReference Include="SkyAPM.Abstractions" Version="$(SkyAPM_Agent_AspNetCore_Version)" />
+    <PackageReference Include="SkyAPM.Utilities.DependencyInjection" Version="$(SkyAPM_Agent_AspNetCore_Version)" />
+  </ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\Core\Adnc.Infra.Core.csproj" />
+	  <ProjectReference Include="..\Redis\Adnc.Infra.Redis.csproj" />
+	</ItemGroup>
+</Project>
