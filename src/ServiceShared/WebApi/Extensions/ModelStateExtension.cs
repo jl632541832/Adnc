@@ -1,9 +1,11 @@
+using System.Text;
+
 namespace Microsoft.AspNetCore.Mvc.ModelBinding;
 
 public static class ModelStateExtensions
 {
     /// <summary>
-    /// 获取验证消息提示并格式化提示
+    /// Gets validation messages and formats the output
     /// </summary>
     public static string GetValidationSummary(this ModelStateDictionary modelState, string separator = "\r\n")
     {

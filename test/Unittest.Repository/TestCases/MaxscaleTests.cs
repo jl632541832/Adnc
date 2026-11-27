@@ -19,8 +19,6 @@ public class MaxscaleTests : IClassFixture<EfCoreDbcontextFixture>
         _cusLogsRsp = _fixture.Container.GetRequiredService<IEfRepository<CustomerTransactionLog>>();
     }
 
-    protected Expression<Func<TEntity, object>>[] UpdatingProps<TEntity>(params Expression<Func<TEntity, object>>[] expressions) => expressions;
-
     [Fact]
     public async Task TestReadFromWirteDb()
     {
@@ -65,8 +63,8 @@ public class MaxscaleTests : IClassFixture<EfCoreDbcontextFixture>
     [Fact]
     public async Task TestUpdate()
     {
-        var newRealName = "测试用户";
-        var newNickname = "测试";
+        var newRealName = "TestUser";
+        var newNickname = "Test";
         long id = 0;
 
         try
@@ -76,9 +74,10 @@ public class MaxscaleTests : IClassFixture<EfCoreDbcontextFixture>
             var result = await InsertCustomer();
             id = result.Id;
 
-            result.Realname = newRealName;
-            result.Nickname = newNickname;
-            await _cusRsp.UpdateAsync(result, UpdatingProps<Customer>(c => c.Realname, c => c.Nickname));
+            await _cusRsp.ExecuteUpdateAsync(c => c.Id == result.Id,
+                setters => setters
+                    .SetProperty(c => c.Realname, newRealName)
+                    .SetProperty(c => c.Nickname, newNickname));
 
             _unitOfWork.Commit();
         }
@@ -91,7 +90,7 @@ public class MaxscaleTests : IClassFixture<EfCoreDbcontextFixture>
             _unitOfWork.Dispose();
         }
 
-        var newCus = await _cusRsp.FindAsync(id, writeDb: true);
+        var newCus = await _cusRsp.FetchAsync(c => c.Id == id, writeDb: true);
         Assert.Equal(newRealName, newCus.Realname);
         Assert.Equal(newNickname, newCus.Nickname);
     }
@@ -99,8 +98,8 @@ public class MaxscaleTests : IClassFixture<EfCoreDbcontextFixture>
     [Fact]
     public async Task TestUpdateFullColumn()
     {
-        var newRealName = "测试用户";
-        var newNickname = "测试";
+        var newRealName = "TestUser";
+        var newNickname = "Test";
         long id = 0;
 
         try
@@ -125,7 +124,7 @@ public class MaxscaleTests : IClassFixture<EfCoreDbcontextFixture>
             _unitOfWork.Dispose();
         }
 
-        var newCus = await _cusRsp.FindAsync(id, writeDb: true);
+        var newCus = await _cusRsp.FetchAsync(c => c.Id == id, writeDb: true);
         Assert.Equal(newRealName, newCus.Realname);
         Assert.Equal(newNickname, newCus.Nickname);
     }
@@ -135,12 +134,15 @@ public class MaxscaleTests : IClassFixture<EfCoreDbcontextFixture>
     {
         var list = await InsertRangeCustomer(10);
         var ids = list.Select(c => c.Id).ToArray();
-        var newRealName = "测试用户001";
-        var newNickname = "测试";
+        var newRealName = "TestUser001";
+        var newNickname = "Test";
 
-        await _cusRsp.UpdateRangeAsync(c => ids.Contains(c.Id), c => new Customer { Realname = newRealName, Nickname = newNickname });
+        await _cusRsp.ExecuteUpdateAsync(c => ids.Contains(c.Id),
+            setters => setters
+                .SetProperty(c => c.Realname, newRealName)
+                .SetProperty(c => c.Nickname, newNickname));
 
-        var newCus = await _cusRsp.FindAsync(list[0].Id, writeDb: true);
+        var newCus = await _cusRsp.FetchAsync(c => c.Id == list[0].Id, writeDb: true);
 
         Assert.Equal(newRealName, newCus.Realname);
         Assert.Equal(newNickname, newCus.Nickname);
@@ -150,7 +152,7 @@ public class MaxscaleTests : IClassFixture<EfCoreDbcontextFixture>
     }
 
     /// <summary>
-    /// 生成测试数据
+    /// Generate test data
     /// </summary>
     /// <returns></returns>
     private async Task<List<Customer>> InsertRangeCustomer(int rows)
@@ -169,7 +171,7 @@ public class MaxscaleTests : IClassFixture<EfCoreDbcontextFixture>
     }
 
     /// <summary>
-    /// 生成测试数据
+    /// Generate test data
     /// </summary>
     /// <returns></returns>
     private async Task<Customer> InsertCustomer()
@@ -181,7 +183,7 @@ public class MaxscaleTests : IClassFixture<EfCoreDbcontextFixture>
     }
 
     /// <summary>
-    /// 生成测试数据
+    /// Generate test data
     /// </summary>
     /// <param name="id"></param>
     /// <returns></returns>

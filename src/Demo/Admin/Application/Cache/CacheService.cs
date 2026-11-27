@@ -1,0 +1,243 @@
+using Adnc.Demo.Admin.Application.Contracts.Dtos.Dict;
+using Adnc.Demo.Admin.Application.Contracts.Dtos.Menu;
+using Adnc.Demo.Admin.Application.Contracts.Dtos.Organization;
+using Adnc.Demo.Admin.Application.Contracts.Dtos.Role;
+using Adnc.Demo.Admin.Application.Contracts.Dtos.SysConfig;
+using Adnc.Demo.Admin.Application.Contracts.Dtos.User;
+
+namespace Adnc.Demo.Admin.Application.Cache;
+
+/// <summary>
+/// Provides cache access and cache preheating for Admin application data.
+/// </summary>
+public sealed class CacheService(Lazy<ICacheProvider> cacheProvider, Lazy<IServiceProvider> serviceProvider
+    , Lazy<IConfiguration> configuration, Lazy<IObjectMapper> mapper)
+    : AbstractCacheService(cacheProvider, serviceProvider), ICachePreheatable
+{
+    /// <summary>
+    /// Preheats commonly used cache entries.
+    /// </summary>
+    public override async Task PreheatAsync()
+    {
+        await GetAllOrganizationsFromCacheAsync();
+        await GetAllMenusFromCacheAsync();
+        await GetAllRoleMenuCodesFromCacheAsync();
+        await GetAllDictOptionsFromCacheAsync();
+        await GetAllSysConfigsFromCacheAsync();
+    }
+
+    /// <summary>
+    /// Gets the refresh token expiration period, including clock skew.
+    /// </summary>
+    /// <returns>The refresh token expiration period in seconds.</returns>
+    internal int GetRefreshTokenExpires()
+    {
+        var refreshTokenExpire = configuration.Value.GetValue<int>($"{NodeConsts.JWT}:RefreshTokenExpire");
+        var clockSkew = configuration.Value.GetValue<int>($"{NodeConsts.JWT}:ClockSkew");
+        return refreshTokenExpire + clockSkew;
+    }
+
+    /// <summary>
+    /// Stores the failed login count for a user in the cache.
+    /// </summary>
+    /// <param name="id">The user ID.</param>
+    /// <param name="count">The failed login count.</param>
+    internal async Task SetFailLoginCountToCacheAsync(long id, int count)
+    {
+        var cacheKey = ConcatCacheKey(CacheConsts.UserFailCountKeyPrefix, id);
+        await CacheProvider.Value.SetAsync(cacheKey, count, TimeSpan.FromSeconds(GetRefreshTokenExpires()));
+    }
+
+    /// <summary>
+    /// Removes the cached failed login count for a user.
+    /// </summary>
+    /// <param name="id">The user ID.</param>
+    internal async Task RemoveFailLoginCountToCacheAsync(long id)
+    {
+        var cacheKey = ConcatCacheKey(CacheConsts.UserFailCountKeyPrefix, id);
+        await CacheProvider.Value.RemoveAsync(cacheKey);
+    }
+
+    /// <summary>
+    /// Gets the cached failed login count for a user.
+    /// </summary>
+    /// <param name="id">The user ID.</param>
+    /// <returns>The failed login count.</returns>
+    internal async Task<int> GetFailLoginCountByUserIdAsync(long id)
+    {
+        var cacheKey = ConcatCacheKey(CacheConsts.UserFailCountKeyPrefix, id);
+        var cacheValue = await CacheProvider.Value.GetAsync<int>(cacheKey);
+        return cacheValue.Value;
+    }
+
+    /// <summary>
+    /// Stores validated user information in the cache.
+    /// </summary>
+    /// <param name="value">The validated user information to cache.</param>
+    internal async Task SetValidateInfoToCacheAsync(UserValidatedInfoDto value)
+    {
+        var cacheKey = ConcatCacheKey(CacheConsts.UserValidatedInfoKeyPrefix, value.Id);
+        await CacheProvider.Value.SetAsync(cacheKey, value, TimeSpan.FromSeconds(GetRefreshTokenExpires()));
+    }
+
+    /// <summary>
+    /// Gets validated user information from the cache.
+    /// </summary>
+    /// <param name="id">The user ID.</param>
+    /// <returns>The cached validated user information, or <see langword="null"/> if none exists.</returns>
+    internal async Task<UserValidatedInfoDto?> GetUserValidateInfoFromCacheAsync(long id)
+    {
+        var cacheKey = ConcatCacheKey(CacheConsts.UserValidatedInfoKeyPrefix, id.ToString());
+        var cacheValue = await CacheProvider.Value.GetAsync<UserValidatedInfoDto>(cacheKey);
+        return cacheValue.Value;
+    }
+
+    /// <summary>
+    /// Refreshes the expiration time for cached validated user information.
+    /// </summary>
+    /// <param name="id">The user ID.</param>
+    internal async Task ChangeUserValidateInfoCacheExpiresDtAsync(long id)
+    {
+        var cacheKey = ConcatCacheKey(CacheConsts.UserValidatedInfoKeyPrefix, id);
+        await CacheProvider.Value.KeyExpireAsync([cacheKey], GetRefreshTokenExpires());
+    }
+
+    /// <summary>
+    /// Gets all organizations from the cache.
+    /// </summary>
+    /// <returns>A list of cached organizations.</returns>
+    internal async Task<List<OrganizationDto>> GetAllOrganizationsFromCacheAsync()
+    {
+        var cahceValue = await CacheProvider.Value.GetAsync(CacheConsts.DetpListCacheKey, async () =>
+        {
+            using var scope = ServiceProvider.Value.CreateScope();
+            var orgRepo = scope.ServiceProvider.GetRequiredService<IEfRepository<Organization>>();
+            var allOrganizations = await orgRepo.GetAll(writeDb: true).OrderBy(x => x.Ordinal).ToListAsync();
+            return mapper.Value.Map<List<OrganizationDto>>(allOrganizations);
+        }, TimeSpan.FromSeconds(GeneralConsts.OneYear));
+
+        return cahceValue.Value ?? [];
+    }
+
+    /// <summary>
+    /// Gets all menus from the cache.
+    /// </summary>
+    /// <returns>A list of cached menus.</returns>
+    internal async Task<List<MenuDto>> GetAllMenusFromCacheAsync()
+    {
+        var cahceValue = await CacheProvider.Value.GetAsync(CacheConsts.MenuListCacheKey, async () =>
+        {
+            using var scope = ServiceProvider.Value.CreateScope();
+            var menuRepo = scope.ServiceProvider.GetRequiredService<IEfRepository<Menu>>();
+            var allMenus = await menuRepo.GetAll(writeDb: true).OrderBy(x => x.Ordinal).ToListAsync();
+            return mapper.Value.Map<List<MenuDto>>(allMenus);
+        }, TimeSpan.FromSeconds(GeneralConsts.OneYear));
+
+        return cahceValue.Value ?? [];
+    }
+
+    /// <summary>
+    /// Gets all role menu codes from the cache.
+    /// </summary>
+    /// <returns>A list of cached role menu code mappings.</returns>
+    internal async Task<List<RoleMenuCodeDto>> GetAllRoleMenuCodesFromCacheAsync()
+    {
+        var cahceValue = await CacheProvider.Value.GetAsync(CacheConsts.RoleMenuCodesCacheKey, async () =>
+        {
+            var result = await GetAllRoleMenuCodesFromDb();
+            return result;
+
+        }, TimeSpan.FromSeconds(GeneralConsts.OneYear));
+
+        return cahceValue.Value ?? [];
+    }
+
+    /// <summary>
+    /// Reloads all role menu codes and stores them in the cache.
+    /// </summary>
+    internal async Task SetAllRoleMenuCodesToCacheAsync()
+    {
+        var cacheValue = await GetAllRoleMenuCodesFromDb();
+        await CacheProvider.Value.SetAsync(CacheConsts.RoleMenuCodesCacheKey, cacheValue, TimeSpan.FromSeconds(GeneralConsts.OneYear));
+    }
+
+    /// <summary>
+    /// Gets all dictionary options from the cache.
+    /// </summary>
+    /// <returns>A list of cached dictionary options.</returns>
+    internal async Task<List<DictOptionDto>> GetAllDictOptionsFromCacheAsync()
+    {
+        var cahceValue = await CacheProvider.Value.GetAsync(CacheConsts.DictOptionsListKey, async () =>
+        {
+            using var scope = ServiceProvider.Value.CreateScope();
+            var dictRepo = scope.ServiceProvider.GetRequiredService<IEfRepository<Dict>>();
+            var dictDataRepo = scope.ServiceProvider.GetRequiredService<IEfRepository<DictData>>();
+
+            var dicts = dictRepo.GetAll();
+            var dictDatas = dictDataRepo.GetAll();
+            var queryList = await (from d in dicts
+                                   join dd in dictDatas on d.Code equals dd.DictCode
+                                   where dd.Status == true
+                                   orderby dd.Ordinal ascending
+                                   select new { d.Code, d.Name, dd.Label, dd.Value, dd.TagType }).ToListAsync();
+
+            var dictOptions = new List<DictOptionDto>();
+            var codes = queryList.Select(x => x.Code).Distinct();
+            foreach (var code in codes)
+            {
+                var option = new DictOptionDto
+                {
+                    Code = code,
+                    Name = queryList.First(x => x.Code == code).Name,
+                    DictDataList = queryList.Where(x => x.Code == code).Select(x => new DictOptionDto.DictDataOption { Label = x.Label, Value = x.Value, TagType = x.TagType }).ToArray()
+                };
+                dictOptions.Add(option);
+            }
+
+            return dictOptions;
+        }, TimeSpan.FromSeconds(GeneralConsts.OneYear));
+
+        return cahceValue.Value ?? [];
+    }
+
+    /// <summary>
+    /// Gets all system configuration entries from the cache.
+    /// </summary>
+    /// <returns>A list of cached system configuration entries.</returns>
+    internal async Task<List<SysConfigSimpleDto>> GetAllSysConfigsFromCacheAsync()
+    {
+        var cahceValue = await CacheProvider.Value.GetAsync(CacheConsts.SysConfigListCacheKey, async () =>
+        {
+            using var scope = ServiceProvider.Value.CreateScope();
+            var sysConfigRepo = scope.ServiceProvider.GetRequiredService<IEfRepository<SysConfig>>();
+            var simpleConfigs = await sysConfigRepo.GetAll(writeDb: true).Select(x => new SysConfigSimpleDto { Key = x.Key, Name = x.Name, Value = x.Value }).ToListAsync();
+            return simpleConfigs;
+        }, TimeSpan.FromSeconds(GeneralConsts.OneYear));
+
+        return cahceValue.Value ?? [];
+    }
+
+    private async Task<List<RoleMenuCodeDto>> GetAllRoleMenuCodesFromDb()
+    {
+        using var scope = ServiceProvider.Value.CreateScope();
+        var menuRepo = scope.ServiceProvider.GetRequiredService<IEfRepository<Menu>>();
+        var roleMenuRepo = scope.ServiceProvider.GetRequiredService<IEfRepository<RoleMenuRelation>>();
+
+        var menuQueryAble = menuRepo.GetAll();
+        var roleMenuQueryAble = roleMenuRepo.GetAll();
+
+        var roleCodes = await (from r in roleMenuQueryAble
+                               join m in menuQueryAble on r.MenuId equals m.Id
+                               select new { r.RoleId, m.Perm, m.RoutePath }
+                                ).ToListAsync();
+
+        var result = new List<RoleMenuCodeDto>();
+        var roleIds = roleCodes.Select(x => x.RoleId).Distinct();
+        foreach (var roleId in roleIds)
+        {
+            var perms = roleCodes.Where(x => x.RoleId == roleId).Select(x => x.Perm.IsNullOrWhiteSpace() ? x.RoutePath : x.Perm).ToArray() ?? [];
+            result.Add(new RoleMenuCodeDto { RoleId = roleId, Perms = perms });
+        }
+        return result;
+    }
+}

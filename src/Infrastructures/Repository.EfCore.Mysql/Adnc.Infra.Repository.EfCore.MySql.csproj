@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<Description>该库是在`Adnc.Infra.Repository.EfCore`基础上Mysql的实现。</Description>
+		<Description>This project is a MySQL implementation built on top of `Adnc.Infra.Repository.EfCore`.</Description>
 		<PackageTags>adnc,efcore,pomelo</PackageTags>
 	</PropertyGroup>
 	<ItemGroup>
@@ -9,8 +9,8 @@
 	  <None Remove="SqlGenerator\**" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="$(Pomelo_EntityFrameworkCore_MySql_Version)" />
-		<PackageReference Include="DotNetCore.CAP.MySql" Version="$(DotNetCore_CAP_MySql_Version)" />
+		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql"/>
+		<PackageReference Include="DotNetCore.CAP.MySql"/>
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\Repository.EfCore\Adnc.Infra.Repository.EfCore.csproj" />

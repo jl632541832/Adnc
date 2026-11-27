@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<ItemGroup Condition="'$(SolutionName)'=='Adnc'">
+		<ProjectReference Include="..\..\..\Infrastructures\Helper\Adnc.Infra.Helper.csproj" />
+    <ProjectReference Include="..\..\..\Infrastructures\Repository\Adnc.Infra.Repository.csproj" />
+    <ProjectReference Include="..\..\..\Infrastructures\Redis.Caching\Adnc.Infra.Redis.Caching.csproj" />
+		<ProjectReference Include="..\..\..\ServiceShared\Shared\Adnc.Shared.csproj" />
+		<ProjectReference Include="..\..\..\ServiceShared\Application.Contracts\Adnc.Shared.Application.Contracts.csproj" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(SolutionName)'=='Adnc.Demo' ">
+		<PackageReference Include="Adnc.Infra.Helper" />
+    <PackageReference Include="Adnc.Infra.Repository" />
+    <PackageReference Include="Adnc.Infra.Redis.Caching" />
+		<PackageReference Include="Adnc.Shared" />
+		<PackageReference Include="Adnc.Shared.Application.Contracts" />
+	</ItemGroup>
+</Project>

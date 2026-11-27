@@ -22,10 +22,8 @@ public class TransactionTests : IClassFixture<EfCoreDbcontextFixture>
 
     }
 
-    private static Expression<Func<TEntity, object>>[] UpdatingProps<TEntity>(params Expression<Func<TEntity, object>>[] expressions) => expressions;
-
     /// <summary>
-    /// 测试工作单元(提交)
+    /// Test the unit of work (commit)
     /// </summary>
     /// <returns></returns>
     [Fact]
@@ -34,12 +32,12 @@ public class TransactionTests : IClassFixture<EfCoreDbcontextFixture>
         var id = UnittestHelper.GetNextId();
         var id2 = UnittestHelper.GetNextId();
         var account = "alpha008";
-        var customer = new Customer() { Id = id, Password = "password", Account = account, Nickname = "招财猫", Realname = "张发财" };
-        var customer2 = new Customer() { Id = id2, Password = "password", Account = account, Nickname = "招财猫02", Realname = "张发财02" };
+        var customer = new Customer() { Id = id, Password = "password", Account = account, Nickname = "LuckyCat", Realname = "ZhangFortune" };
+        var customer2 = new Customer() { Id = id2, Password = "password", Account = account, Nickname = "LuckyCat02", Realname = "ZhangFortune02" };
         var cusFinance = new CustomerFinance { Account = account, Id = id, Balance = 0 };
 
-        var newNickName = "招财猫008";
-        var newRealName = "张发财008";
+        var newNickName = "LuckyCat008";
+        var newRealName = "ZhangFortune008";
         var newBalance = 100m;
         try
         {
@@ -51,19 +49,22 @@ public class TransactionTests : IClassFixture<EfCoreDbcontextFixture>
             await _customerRsp.InsertAsync(customer2);
 
             //update single
-            customer.Nickname = newNickName;
-            await _customerRsp.UpdateAsync(customer, UpdatingProps<Customer>(c => c.Nickname));
-            var customerFromDb = await _customerRsp.FindAsync(customer.Id);
+            await _customerRsp.ExecuteUpdateAsync(x => x.Id == customer.Id,
+                setters => setters.SetProperty(c => c.Nickname, newNickName));
+            var customerFromDb = await _customerRsp.FetchAsync(x => x.Id == customer.Id);
             Assert.Equal(newNickName, customerFromDb.Nickname);
             Assert.NotEqual(newRealName, customerFromDb.Realname);
 
-            cusFinance.Balance = newBalance;
-            await _cusFinanceRsp.UpdateAsync(cusFinance, UpdatingProps<CustomerFinance>(c => c.Balance));
+            await _cusFinanceRsp.ExecuteUpdateAsync(x => x.Id == cusFinance.Id,
+                setters => setters.SetProperty(c => c.Balance, newBalance));
             var financeFromDb = await _customerRsp.FetchAsync(x => x.Id == cusFinance.Id);
             Assert.Equal(newBalance, cusFinance.Balance);
 
             //update batchs
-            await _customerRsp.UpdateRangeAsync(x => x.Id == id, c => new Customer { Realname = newRealName, Nickname = newNickName });
+            await _customerRsp.ExecuteUpdateAsync(x => x.Id == id,
+                setters => setters
+                    .SetProperty(c => c.Realname, newRealName)
+                    .SetProperty(c => c.Nickname, newNickName));
 
             //delete raw sql
             await _customerRsp.DeleteAsync(id2);
@@ -90,7 +91,7 @@ public class TransactionTests : IClassFixture<EfCoreDbcontextFixture>
     }
 
     /// <summary>
-    /// 测试工作单元(回滚)
+    /// Test the unit of work (rollback)
     /// </summary>
     /// <returns></returns>
     [Fact]
@@ -99,12 +100,12 @@ public class TransactionTests : IClassFixture<EfCoreDbcontextFixture>
         var id = UnittestHelper.GetNextId();
         var id2 = UnittestHelper.GetNextId();
         var account = "alpha008";
-        var customer = new Customer() { Id = id, Account = account, Nickname = "招财猫", Realname = "张发财" };
-        var customer2 = new Customer() { Id = id2, Account = account, Nickname = "招财猫02", Realname = "张发财02" };
+        var customer = new Customer() { Id = id, Account = account, Nickname = "LuckyCat", Realname = "ZhangFortune" };
+        var customer2 = new Customer() { Id = id2, Account = account, Nickname = "LuckyCat02", Realname = "ZhangFortune02" };
         var cusFinance = new CustomerFinance { Account = account, Id = id, Balance = 0 };
 
-        var newNickName = "招财猫008";
-        var newRealName = "张发财008";
+        var newNickName = "LuckyCat008";
+        var newRealName = "ZhangFortune008";
         var newBalance = 100m;
         try
         {
@@ -116,22 +117,23 @@ public class TransactionTests : IClassFixture<EfCoreDbcontextFixture>
             await _cusFinanceRsp.InsertAsync(cusFinance);
 
             //update single
-            customer.Nickname = newNickName;
-            await _customerRsp.UpdateAsync(customer, UpdatingProps<Customer>(c => c.Nickname));
-            cusFinance.Balance = newBalance;
-            await _cusFinanceRsp.UpdateAsync(cusFinance, UpdatingProps<CustomerFinance>(c => c.Balance));
+            await _customerRsp.ExecuteUpdateAsync(x => x.Id == customer.Id,
+                setters => setters.SetProperty(c => c.Nickname, newNickName));
+            await _cusFinanceRsp.ExecuteUpdateAsync(x => x.Id == cusFinance.Id,
+                setters => setters.SetProperty(c => c.Balance, newBalance));
 
             //update batchs
-            await _customerRsp.UpdateRangeAsync(x => x.Id == id, c => new Customer { Realname = newRealName });
+            await _customerRsp.ExecuteUpdateAsync(x => x.Id == id,
+                setters => setters.SetProperty(c => c.Realname, newRealName));
 
             //delete raw sql
             await _customerRsp.DeleteAsync(id2);
 
             throw new Exception();
 
-#pragma warning disable CS0162 // 检测到无法访问的代码
+#pragma warning disable CS0162 // Unreachable code detected
             _unitOfWork.Commit();
-#pragma warning restore CS0162 // 检测到无法访问的代码
+#pragma warning restore CS0162 // Unreachable code detected
         }
         catch (Exception)
         {
@@ -146,7 +148,7 @@ public class TransactionTests : IClassFixture<EfCoreDbcontextFixture>
         var cusTotal = await _customerRsp.CountAsync(x => x.Id == id || x.Id == id2);
         Assert.Equal(0, cusTotal);
 
-        var customerFromDb = await _customerRsp.FindAsync(id);
+        var customerFromDb = await _customerRsp.FetchAsync(x => x.Id == id);
         var financeFromDb = await _customerRsp.FetchAsync(x => x.Id == id, c => c.FinanceInfo);
 
         Assert.Null(customerFromDb);
@@ -154,7 +156,7 @@ public class TransactionTests : IClassFixture<EfCoreDbcontextFixture>
     }
 
     /// <summary>
-    ///测试savechanges被事务包裹
+    /// Test SaveChanges wrapped in a transaction
     /// </summary>
     /// <returns></returns>
     [Fact]
@@ -167,14 +169,14 @@ public class TransactionTests : IClassFixture<EfCoreDbcontextFixture>
         await _customerRsp.ExecuteDeleteAsync(x => x.Id <= 10000);
 
         var id = UnittestHelper.GetNextId();
-        var customer = new Customer() { Id = id, Password = "password", Account = account, Nickname = "招财猫", Realname = "张发财", FinanceInfo = new CustomerFinance { Id = id, Account = account, Balance = 0 } };
+        var customer = new Customer() { Id = id, Password = "password", Account = account, Nickname = "LuckyCat", Realname = "ZhangFortune", FinanceInfo = new CustomerFinance { Id = id, Account = account, Balance = 0 } };
 
         _dbContext.Add(customer);
 
         await _dbContext.SaveChangesAsync();
 
         var id2 = UnittestHelper.GetNextId();
-        var customer2 = new Customer() { Id = id2, Password = "password", Account = account, Nickname = "招财猫02", Realname = "张发财02", FinanceInfo = new CustomerFinance { Id = id2, Account = account, Balance = 0 } };
+        var customer2 = new Customer() { Id = id2, Password = "password", Account = account, Nickname = "LuckyCat02", Realname = "ZhangFortune02", FinanceInfo = new CustomerFinance { Id = id2, Account = account, Balance = 0 } };
 
         _dbContext.Add(customer2);
 
@@ -186,7 +188,7 @@ public class TransactionTests : IClassFixture<EfCoreDbcontextFixture>
     }
 
     /// <summary>
-    /// 测试SaveChanges自动事务
+    /// Test the automatic SaveChanges transaction
     /// </summary>
     /// <returns></returns>
     [Fact]
@@ -211,10 +213,10 @@ public class TransactionTests : IClassFixture<EfCoreDbcontextFixture>
 
         await _customerRsp.InsertAsync(cusotmer);
 
-        //不会开启事物
+        // No transaction will be started
         await _customerRsp.DeleteAsync(id);
 
-        //不会开启事物
+        // No transaction will be started
         await _customerRsp.ExecuteDeleteAsync(x => x.Id == 10000);
 
         _dbContext.SaveChanges();
@@ -257,7 +259,7 @@ public class TransactionTests : IClassFixture<EfCoreDbcontextFixture>
             await _customerRsp.ExecuteDeleteAsync(x => x.Id <=10000);
 
             //ef search
-            var dbCustomer2 = await _customerRsp.FindAsync(dbCustomer.Id, x => x.FinanceInfo);
+            var dbCustomer2 = await _customerRsp.FetchAsync(x => x.Id == dbCustomer.Id, x => x.FinanceInfo);
             Assert.NotNull(dbCustomer2);
             Assert.Equal("test8888", dbCustomer2.Nickname);
 
@@ -276,7 +278,7 @@ public class TransactionTests : IClassFixture<EfCoreDbcontextFixture>
     }
 
     /// <summary>
-    /// 生成测试数据
+    /// Generate test data
     /// </summary>
     /// <returns></returns>
     private async Task<Customer> InsertCustomer()

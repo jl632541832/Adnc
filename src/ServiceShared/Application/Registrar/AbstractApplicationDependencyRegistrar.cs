@@ -1,12 +1,14 @@
+using Adnc.Infra.EventBus.Tracker;
 using Adnc.Infra.Repository.Interceptor.Castle;
 using Adnc.Shared.Application.Mapper.AutoMapper;
 using Adnc.Shared.Application.Services.Trackers;
+using Castle.DynamicProxy.Internal;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Adnc.Shared.Application.Registrar;
 
 /// <summary>
-///  Application依赖注册器
+/// Application dependency registrar
 /// </summary>
 public abstract partial class AbstractApplicationDependencyRegistrar
 {
@@ -24,22 +26,22 @@ public abstract partial class AbstractApplicationDependencyRegistrar
     }
 
     public string Name => "application";
-    public abstract Assembly ApplicationLayerAssembly { get; }
-    public abstract Assembly ContractsLayerAssembly { get; }
-    public abstract Assembly RepositoryOrDomainLayerAssembly { get; }
+    protected abstract Assembly ApplicationLayerAssembly { get; }
+    //public abstract Assembly ContractsLayerAssembly { get; }
+    protected abstract Assembly RepositoryOrDomainLayerAssembly { get; }
     protected List<Type> DefaultInterceptorTypes => [typeof(OperateLogInterceptor), typeof(CachingInterceptor), typeof(UowInterceptor)];
-    protected IServiceCollection Services { get; init; }
-    protected IConfiguration Configuration { get; init; }
-    protected IServiceInfo ServiceInfo { get; init; }
-    protected ServiceLifetime Lifetime { get; init; }
+    internal IServiceCollection Services { get; init; }
+    internal IConfiguration Configuration { get; init; }
+    internal IServiceInfo ServiceInfo { get; init; }
+    internal ServiceLifetime Lifetime { get; init; }
 
     /// <summary>
-    /// 注册所有服务
+    /// Registers all services.
     /// </summary>
     public abstract void AddApplicationServices();
 
     /// <summary>
-    /// 注册adnc.application通用服务
+    /// Registers common adnc.application services.
     /// </summary>
     protected void AddApplicaitonDefaultServices()
     {
@@ -62,8 +64,8 @@ public abstract partial class AbstractApplicationDependencyRegistrar
         var consulSection = Configuration.GetRequiredSection(NodeConsts.Consul);
         Services
             .AddSingleton<IObjectMapper, AutoMapperObject>()
-            .AddAutoMapper([ApplicationLayerAssembly])
-            .AddValidatorsFromAssembly(ContractsLayerAssembly, Lifetime)
+            .AddAutoMapper(cfg => { }, ApplicationLayerAssembly)
+            .AddValidatorsFromAssembly(ApplicationLayerAssembly, Lifetime)
             .AddAdncInfraYitterIdGenerater(redisSection, ServiceInfo.ShortName.Split('-')[0], Lifetime)
             .AddAdncInfraConsul(consulSection, null, Lifetime)
             .AddAdncInfraRedisCaching(ApplicationLayerAssembly, redisSection, cachingSection, Lifetime)
@@ -71,11 +73,12 @@ public abstract partial class AbstractApplicationDependencyRegistrar
 
         AddEfCoreContext();
 
-        var serviceTypes = ContractsLayerAssembly.GetExportedTypes().Where(type => type.IsInterface && type.IsAssignableTo(typeof(IAppService))).ToList();
-        serviceTypes?.ForEach(serviceType =>
+        var implTypes = ApplicationLayerAssembly.GetExportedTypes().Where(type => type.IsClass && type.IsNotAbstractClass(true) && type.IsAssignableTo(typeof(IAppService))).ToList();
+        implTypes?.ForEach(implType =>
         {
-            var implType = ApplicationLayerAssembly.ExportedTypes.FirstOrDefault(type => type.IsAssignableTo(serviceType) && type.IsNotAbstractClass(true));
-            if (implType is not null)
+            var allInterfaces = implType.GetAllInterfaces().ToList();
+            var serviceType = allInterfaces.FirstOrDefault(x => x.IsAssignableTo(typeof(IAppService)));
+            if (serviceType is not null)
             {
                 Services.TryAddSingleton(new ProxyGenerator());
                 Services.Add(new ServiceDescriptor(implType, implType, Lifetime));

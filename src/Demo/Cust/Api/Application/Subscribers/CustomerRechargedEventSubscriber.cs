@@ -1,0 +1,68 @@
+using Adnc.Demo.Remote.Event;
+using Adnc.Infra.EventBus.Tracker;
+
+namespace Adnc.Demo.Cust.Api.Application.Subscribers;
+
+public sealed partial class CustomerRechargedEventSubscriber(IUnitOfWork unitOfWork, IEfRepository<Finance> finaceRepo, IEfRepository<TransactionLog> transactionLogRepo, MessageTrackerFactory trackerFactory) : ICapSubscribe
+{
+    private readonly IMessageTracker _tracker = trackerFactory.Create();
+
+    /// <summary>
+    /// Subscribe to recharge events
+    /// </summary>
+    /// <param name="eventDto"></param>
+    /// <returns></returns>
+    [CapSubscribe(nameof(CustomerRechargedEvent))]
+    public async Task HandleCustomerRechargedEvent(CustomerRechargedEvent eventDto)
+    {
+        eventDto.TrimStringFields();
+
+        var eventId = eventDto.Id;
+        var eventHandler = nameof(HandleCustomerRechargedEvent);
+        var hasProcessed = await _tracker.HasProcessedAsync(eventId, eventHandler);
+        if (hasProcessed)
+        {
+            return;
+        }
+
+        var transLog = await transactionLogRepo.FetchAsync(x => x.Id == eventDto.TransactionLogId, noTracking: false);
+        if (transLog is null)
+        {
+            return;
+        }
+
+        var finance = await finaceRepo.FetchAsync(x => x.Id == eventDto.CustomerId, noTracking: false);
+        if (finance is null)
+        {
+            return;
+        }
+
+        try
+        {
+            unitOfWork.BeginTransaction();
+
+            var originalBalance = finance.Balance;
+            var changedBalance = originalBalance + eventDto.Amount;
+            finance.Balance = changedBalance;
+            await finaceRepo.UpdateAsync(finance);
+
+            transLog.ExchageStatus = ExchageStatus.Finished;
+            transLog.ChangingAmount = originalBalance;
+            transLog.ChangedAmount = changedBalance;
+            await transactionLogRepo.UpdateAsync(transLog);
+
+            await _tracker.MarkAsProcessedAsync(eventId, eventHandler);
+
+            await unitOfWork.CommitAsync();
+        }
+        catch (Exception ex)
+        {
+            await unitOfWork.RollbackAsync();
+            throw new InvalidOperationException($"{eventHandler}-{eventId}", ex);
+        }
+        finally
+        {
+            unitOfWork.Dispose();
+        }
+    }
+}

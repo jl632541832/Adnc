@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ADNC Docs</title>
+  <meta name="description" content="ADNC is a pragmatic .NET 8 framework for modular monoliths to evolve seamlessly into distributed microservices.">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  <link rel="canonical" href="https://alphayu.github.io/adnc/">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
+  <style>
+    .app-nav a {
+      border: 1px solid #d0d7de;
+      border-radius: 4px;
+      padding: 4px 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    var docsBasePath = getDocsBasePath();
+
+    window.$docsify = {
+      name: 'ADNC Docs',
+      repo: 'https://github.com/alphayu/adnc',
+      routerMode: 'history',
+      loadSidebar: true,
+      loadNavbar: true,
+      subMaxLevel: 2,
+      search: {
+        maxAge: 86400000,
+        paths: 'auto',
+        placeholder: {
+          '/README_ZH': '搜索',
+          '/wiki/zh-cn/': '搜索',
+          '/': 'Search'
+        },
+        noData: {
+          '/README_ZH': '没有结果',
+          '/wiki/zh-cn/': '没有结果',
+          '/': 'No results'
+        },
+        depth: 4,
+        hideOtherSidebarContent: false
+      },
+      alias: {
+        '/adnc/.*/_navbar.md': '/adnc/_navbar.md',
+        '/adnc/wiki/en/_sidebar.md': '/adnc/_sidebar.md',
+        '/adnc/wiki/en/.*/_sidebar.md': '/adnc/_sidebar.md',
+        '/adnc/wiki/zh-cn/_sidebar.md': '/adnc/_sidebar_zh.md',
+        '/adnc/wiki/zh-cn/.*/_sidebar.md': '/adnc/_sidebar_zh.md',
+        '/.*/_navbar.md': '/_navbar.md',
+        '/wiki/en/_sidebar.md': '/_sidebar.md',
+        '/wiki/en/.*/_sidebar.md': '/_sidebar.md',
+        '/wiki/zh-cn/_sidebar.md': '/_sidebar_zh.md',
+        '/wiki/zh-cn/.*/_sidebar.md': '/_sidebar_zh.md'
+      },
+      plugins: [
+        function(hook, vm) {
+          hook.doneEach(function() {
+            var path = normalizeRoutePath(vm.route.path || location.pathname);
+            var useChineseSidebar = path.indexOf('/README_ZH') === 0 || path.indexOf('/wiki/zh-cn/') === 0;
+            var sidebarFile = toHistoryHref(useChineseSidebar ? '/_sidebar_zh.md' : '/_sidebar.md');
+            var sidebar = document.querySelector('.sidebar-nav');
+
+            updateSeo(path, useChineseSidebar);
+            rewriteInternalLinks(document.querySelector('.app-nav'));
+            rewriteInternalLinks(document.querySelector('.markdown-section'));
+
+            if (!sidebar) {
+              return;
+            }
+
+            fetch(sidebarFile)
+              .then(function(response) {
+                return response.text();
+              })
+              .then(function(markdown) {
+                sidebar.innerHTML = renderSidebar(markdown);
+                rewriteInternalLinks(sidebar);
+              });
+          });
+
+          function renderSidebar(markdown) {
+            var html = '';
+            var inRootList = false;
+            var openGroup = false;
+
+            markdown.split('\n').forEach(function(line) {
+              var groupMatch = line.match(/^\*\s+(.+)$/);
+              var linkMatch = line.match(/^\s{2}\*\s+\[([^\]]+)\]\(([^)]+)\)/);
+              var rootLinkMatch = line.match(/^\*\s+\[([^\]]+)\]\(([^)]+)\)/);
+
+              if (rootLinkMatch) {
+                if (openGroup) {
+                  html += '</ul></li>';
+                  openGroup = false;
+                }
+
+                if (!inRootList) {
+                  html += '<ul>';
+                  inRootList = true;
+                }
+
+                html += '<li>' + renderLink(rootLinkMatch[1], rootLinkMatch[2]) + '</li>';
+                return;
+              }
+
+              if (groupMatch && !line.match(/^\*\s+\[/)) {
+                if (openGroup) {
+                  html += '</ul></li>';
+                }
+
+                if (!inRootList) {
+                  html += '<ul>';
+                  inRootList = true;
+                }
+
+                html += '<li><strong>' + escapeHtml(groupMatch[1]) + '</strong><ul>';
+                openGroup = true;
+                return;
+              }
+
+              if (linkMatch) {
+                if (!openGroup) {
+                  if (!inRootList) {
+                    html += '<ul>';
+                    inRootList = true;
+                  }
+
+                  html += '<li><ul>';
+                  openGroup = true;
+                }
+
+                html += '<li>' + renderLink(linkMatch[1], linkMatch[2]) + '</li>';
+              }
+            });
+
+            if (openGroup) {
+              html += '</ul></li>';
+            }
+
+            if (inRootList) {
+              html += '</ul>';
+            }
+
+            return html;
+          }
+
+          function renderLink(title, href) {
+            var docsifyHref = toHistoryHref(href);
+            return '<a href="' + docsifyHref + '">' + escapeHtml(title) + '</a>';
+          }
+
+          function escapeHtml(value) {
+            return value
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#039;');
+          }
+
+          function updateSeo(path, useChineseSidebar) {
+            var title = getPageTitle();
+            var description = getPageDescription(useChineseSidebar);
+            var canonical = getCanonicalUrl(path);
+
+            document.documentElement.lang = useChineseSidebar ? 'zh-CN' : 'en';
+            document.title = title ? title + ' | ADNC Docs' : 'ADNC Docs';
+            setMeta('description', description);
+            setCanonical(canonical);
+          }
+
+          function getPageTitle() {
+            var heading = document.querySelector('.markdown-section h1');
+
+            if (heading && heading.textContent.trim()) {
+              return heading.textContent.trim();
+            }
+
+            return 'ADNC Docs';
+          }
+
+          function getPageDescription(useChineseSidebar) {
+            var paragraph = document.querySelector('.markdown-section p');
+            var fallback = useChineseSidebar
+              ? 'ADNC 是一个面向 .NET 8 的实用参考架构，适用于模块化单体、分布式应用和微服务系统。'
+              : 'ADNC is a pragmatic .NET 8 framework for modular monoliths to evolve seamlessly into distributed microservices.';
+
+            if (paragraph && paragraph.textContent.trim()) {
+              return paragraph.textContent.trim().replace(/\s+/g, ' ').slice(0, 160);
+            }
+
+            return fallback;
+          }
+
+          function getCanonicalUrl(path) {
+            var normalizedPath = path || '/';
+            var baseUrl = 'https://alphayu.github.io/adnc';
+
+            if (normalizedPath === '/') {
+              return baseUrl + '/';
+            }
+
+            return baseUrl + normalizedPath;
+          }
+
+          function setMeta(name, content) {
+            var meta = document.querySelector('meta[name="' + name + '"]');
+
+            if (!meta) {
+              meta = document.createElement('meta');
+              meta.setAttribute('name', name);
+              document.head.appendChild(meta);
+            }
+
+            meta.setAttribute('content', content);
+          }
+
+          function setCanonical(href) {
+            var link = document.querySelector('link[rel="canonical"]');
+
+            if (!link) {
+              link = document.createElement('link');
+              link.setAttribute('rel', 'canonical');
+              document.head.appendChild(link);
+            }
+
+            link.setAttribute('href', href);
+          }
+
+          function toHistoryHref(href) {
+            if (!href || /^(https?:|mailto:|tel:|#)/.test(href)) {
+              return href;
+            }
+
+            var normalizedHref = href.indexOf('/') === 0 ? href : '/' + href;
+
+            if (normalizedHref === '/') {
+              return docsBasePath + '/' || '/';
+            }
+
+            return docsBasePath + normalizedHref;
+          }
+
+          function rewriteInternalLinks(root) {
+            if (!root) {
+              return;
+            }
+
+            Array.prototype.forEach.call(root.querySelectorAll('a[href^="/"]'), function(link) {
+              var href = link.getAttribute('href');
+
+              if (docsBasePath && href.indexOf(docsBasePath + '/') !== 0 && href !== docsBasePath + '/') {
+                link.setAttribute('href', docsBasePath + href);
+              }
+            });
+          }
+
+          function normalizeRoutePath(path) {
+            if (!path) {
+              return '/';
+            }
+
+            if (docsBasePath && path === docsBasePath) {
+              return '/';
+            }
+
+            if (docsBasePath && path.indexOf(docsBasePath + '/') === 0) {
+              return path.slice(docsBasePath.length) || '/';
+            }
+
+            return path;
+          }
+        }
+      ]
+    };
+
+    function getDocsBasePath() {
+      return location.pathname === '/adnc' || location.pathname.indexOf('/adnc/') === 0 ? '/adnc' : '';
+    }
+  </script>
+  <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
+</body>
+</html>

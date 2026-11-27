@@ -1,3 +1,4 @@
+using System.Text;
 using Adnc.Infra.Consul.Configuration;
 using Adnc.Shared.WebApi.Middleware;
 
@@ -8,12 +9,12 @@ public abstract partial class AbstractWebApiMiddlewareRegistrar(WebApplication a
     protected WebApplication App { get; init; } = app;
 
     /// <summary>
-    /// 注册中间件
+    /// Registers middleware.
     /// </summary>
     public abstract void UseAdnc();
 
     /// <summary>
-    /// 注册webapi通用中间件
+    /// Registers common WebApi middleware.
     /// </summary>
     protected void UseWebApiDefault(
         Action<WebApplication>? beforeAuthentication = null,
@@ -51,10 +52,8 @@ public abstract partial class AbstractWebApiMiddlewareRegistrar(WebApplication a
             var description = serviceInfo.Description;
             var serverName = serviceInfo.ServiceName;
             var version = serviceInfo.Version;
-#if DEBUG
-            App.UseMiniProfiler();
-#endif
             App
+                .UseMiniProfiler()
                 .UseSwagger(c =>
                 {
                     c.RouteTemplate = $"/{relativeRootPath}/swagger/{{documentName}}/swagger.json";
@@ -65,7 +64,6 @@ public abstract partial class AbstractWebApiMiddlewareRegistrar(WebApplication a
                 })
                 .UseSwaggerUI(c =>
                 {
-#if DEBUG
                     var assembly = serviceInfo.StartAssembly;
                     c.IndexStream = () =>
                     {
@@ -77,7 +75,6 @@ public abstract partial class AbstractWebApiMiddlewareRegistrar(WebApplication a
                         var stream = new MemoryStream(byteArray);
                         return stream;
                     };
-#endif
                     c.SwaggerEndpoint($"/{relativeRootPath}/swagger/{version}/swagger.json", $"{serverName}-{version}");
                     c.RoutePrefix = $"{relativeRootPath}";
                 });
@@ -86,7 +83,7 @@ public abstract partial class AbstractWebApiMiddlewareRegistrar(WebApplication a
             .UseHealthChecks($"/{healthCheckUrl}", new HealthCheckOptions()
             {
                 Predicate = _ => true,
-                // 该响应输出是一个json，包含所有检查项的详细检查结果
+                // This response outputs a JSON payload that contains the detailed results of all checks
                 ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
             })
             .UseRouting();

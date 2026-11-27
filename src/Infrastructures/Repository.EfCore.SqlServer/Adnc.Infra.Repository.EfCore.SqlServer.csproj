@@ -1,14 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<Description>该工程是在`Adnc.Infra.Repository.EfCore`基础上SqlServer的实现。</Description>
+		<Description>This project is a SQL Server implementation built on top of `Adnc.Infra.Repository.EfCore`.</Description>
 		<PackageTags>adnc,efcore,sqlserver</PackageTags>
 	</PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="DotNetCore.CAP" Version="$(DotNetCore_CAP_Version)" />
-		<PackageReference Include="DotNetCore.CAP.SqlServer" Version="$(DotNetCore_CAP_SqlServer_Version)" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="$(Microsoft_EntityFrameworkCore_SqlServer_Version)" />
-		<PackageReference Include="EFCore.NamingConventions" Version="$(EFCore_NamingConventions_Version)" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="$(Microsoft_Extensions_Configuration_Binder_Version)"/>
+		<PackageReference Include="DotNetCore.CAP" />
+		<PackageReference Include="DotNetCore.CAP.SqlServer" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer"/>
+		<PackageReference Include="EFCore.NamingConventions"  />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Binder"/>
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\Repository.EfCore\Adnc.Infra.Repository.EfCore.csproj" />

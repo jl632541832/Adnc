@@ -9,7 +9,7 @@ namespace Adnc.Shared.WebApi.Registrar;
 public abstract partial class AbstractWebApiDependencyRegistrar
 {
     /// <summary>
-    /// 注册身份认证组件
+    /// Registers authentication components.
     /// </summary>
     /// <typeparam name="TAuthenticationHandler"></typeparam>
     /// <exception cref="ArgumentNullException"></exception>
@@ -19,7 +19,7 @@ public abstract partial class AbstractWebApiDependencyRegistrar
 
         var jwtSection = Configuration.GetRequiredSection(NodeConsts.JWT);
         var basicSection = Configuration.GetRequiredSection(NodeConsts.Basic);
-        var jwtConfig = jwtSection.Get<JWTOptions>() ?? throw new InvalidDataException(nameof(jwtSection));
+        var jwtOptions = jwtSection.Get<JWTOptions>() ?? throw new InvalidDataException(nameof(jwtSection));
         Services
             .Configure<JWTOptions>(jwtSection)
             .Configure<BasicOptions>(basicSection)
@@ -29,23 +29,23 @@ public abstract partial class AbstractWebApiDependencyRegistrar
             .AddJwtBearer(options =>
             {
                 options.MapInboundClaims = false;
-                options.TokenValidationParameters = jwtConfig.GenarateTokenValidationParameters();
+                options.TokenValidationParameters = jwtOptions.GenarateTokenValidationParameters();
                 options.Events = new JwtBearerEvents
                 {
-                    //接受到消息时调用
+                    // Called when a message is received
                     OnMessageReceived = context =>
                     {
                         return Task.CompletedTask;
                     },
-                    //未授权时调用
+                    // Called when authorization fails
                     OnChallenge = context =>
                     {
                         return Task.CompletedTask;
                     },
-                    //认证失败时调用
+                    // Called when authentication fails
                     OnAuthenticationFailed = context =>
                     {
-                        //如果是过期，在http heard中加入act参数
+                        // If the token is expired, add the act parameter to the HTTP header
                         if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
                         {
                             context.Response.Headers.TryAdd("act", "expired");
@@ -53,7 +53,7 @@ public abstract partial class AbstractWebApiDependencyRegistrar
 
                         return Task.CompletedTask;
                     },
-                    //在Token验证通过后调用
+                    // Called after token validation succeeds
                     OnTokenValidated = async (context) =>
                     {
                         var principal = context.Principal ?? throw new ArgumentNullException(nameof(context.Principal));

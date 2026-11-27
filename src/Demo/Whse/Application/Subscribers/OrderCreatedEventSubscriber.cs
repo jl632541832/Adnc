@@ -1,0 +1,25 @@
+using Adnc.Demo.Remote.Event;
+using Adnc.Infra.EventBus.Tracker;
+
+namespace Adnc.Demo.Whse.Application.Subscribers;
+
+public sealed class OrderCreatedEventSubscriber(IWarehouseService wareHouserSrv, MessageTrackerFactory trackerFactory) : ICapSubscribe
+{
+    private readonly IMessageTracker _tracker = trackerFactory.Create();
+
+    /// <summary>
+    /// Subscribe to order creation events
+    /// </summary>
+    /// <param name="eventDto"></param>
+    /// <returns></returns>
+    [CapSubscribe(nameof(OrderCreatedEvent))]
+    public async Task ProcessOrderCreatedEvent(OrderCreatedEvent eventDto)
+    {
+        eventDto.EventTarget = MethodBase.GetCurrentMethod()?.GetMethodName() ?? string.Empty;
+        var hasProcessed = await _tracker.HasProcessedAsync(eventDto);
+        if (!hasProcessed)
+        {
+            await wareHouserSrv.BlockQtyAsync(eventDto, _tracker);
+        }
+    }
+}

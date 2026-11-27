@@ -4,7 +4,7 @@ using Adnc.Shared.WebApi.Authorization.Handlers;
 namespace Adnc.Shared.WebApi.Registrar;
 
 /// <summary>
-/// WebApi依赖注册器
+/// WebApi dependency registrar
 /// </summary>
 public abstract partial class AbstractWebApiDependencyRegistrar
 {
@@ -20,20 +20,20 @@ public abstract partial class AbstractWebApiDependencyRegistrar
     }
 
     public string Name => "webapi";
-    protected IConfiguration Configuration { get; init; }
-    protected IServiceCollection Services { get; init; }
-    protected IServiceInfo ServiceInfo { get; init; }
+    internal IConfiguration Configuration { get; init; }
+    internal IServiceCollection Services { get; init; }
+    internal IServiceInfo ServiceInfo { get; init; }
 
     public abstract void AddAdncServices();
 
     /// <summary>
-    /// 注册Webapi通用的服务
+    /// Registers common WebApi services.
     /// </summary>
     public void AddWebApiDefaultServices()
         => AddWebApiDefaultServices<BearerAuthenticationCacheProcessor, PermissionCacheHandler>();
 
     /// <summary>
-    /// 注册Webapi通用的服务
+    /// Registers common WebApi services.
     /// </summary>
     /// <typeparam name="TAuthenticationProcessor"><see cref="AbstractAuthenticationProcessor"/></typeparam>
     /// <typeparam name="TAuthorizationHandler"><see cref="AbstractPermissionHandler"/></typeparam>
